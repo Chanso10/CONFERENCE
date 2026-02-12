@@ -36,45 +36,75 @@ function PaperList(){
         setPdf(null);
     };
     return(
-        <div>
-            <button onClick={()=> setShowForm(!showForm)}>Submit New Paper</button>
+        <main className="app-shell">
+            <section className="page-header">
+                <div>
+                    <p className="page-kicker">Conference Portal</p>
+                    <h1 className="page-title">Paper Submissions</h1>
+                    <p className="page-subtitle">Track, review, and access submitted papers from one clean workspace.</p>
+                </div>
+                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)}>
+                    {showForm ? "Close Form" : "Submit New Paper"}
+                </button>
+            </section>
+
             {showForm && (
-                <form onSubmit={submitPaper}>
-                    <input type="text" placeholder="Author" value={author} onChange={e=> setAuthor(e.target.value)} required/>
-                    <input type="text" placeholder="Description" value={description} onChange={e=> setDescription(e.target.value)} required/>
-                    <input type="file" onChange={e=> setPdf(e.target.files[0])}/>
-                    <button type="submit">Upload</button>
+                <form className="panel paper-form" onSubmit={submitPaper}>
+                    <h2 className="panel-title">New Submission</h2>
+                    <div className="form-grid">
+                        <label className="field">
+                            <span>Author</span>
+                            <input type="text" placeholder="Author name" value={author} onChange={e=> setAuthor(e.target.value)} required/>
+                        </label>
+                        <label className="field">
+                            <span>Description</span>
+                            <input type="text" placeholder="Paper summary" value={description} onChange={e=> setDescription(e.target.value)} required/>
+                        </label>
+                        <label className="field">
+                            <span>PDF</span>
+                            <input type="file" onChange={e=> setPdf(e.target.files[0])} accept="application/pdf" required/>
+                        </label>
+                    </div>
+                    <div className="form-actions">
+                        <button className="btn btn-primary" type="submit">Upload Paper</button>
+                    </div>
                 </form>
             )}
 
-            <hr />
-            <table border="1" cellPadding="8">
-                <thead>
-                    <tr>
-                        <th>Author</th>
-                        <th>Description</th>
-                        <th>View</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {papers.length === 0 && (
-                        <tr>
-                            <td colSpan="3">No papers submitted yet.</td>
-                        </tr>
-                    )}
-                    {papers.map((p)=>(
-                        <tr key={p.todo_id}>
-                            <td>{p.author}</td>
-                            <td>{p.description}</td>
-                            <td>
-                                <Link to={`/todos/${p.todo_id}`}><button>View Paper</button></Link>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-        </div>
+            <section className="panel table-panel">
+                <div className="table-head">
+                    <h2 className="panel-title">Submitted Papers</h2>
+                    <p className="table-meta">{papers.length} total</p>
+                </div>
+                <div className="table-wrap">
+                    <table className="paper-table">
+                        <thead>
+                            <tr>
+                                <th>Author</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {papers.length === 0 && (
+                                <tr>
+                                    <td className="empty-state" colSpan="3">No papers submitted yet.</td>
+                                </tr>
+                            )}
+                            {papers.map((p)=>(
+                                <tr key={p.todo_id}>
+                                    <td className="author-cell">{p.author}</td>
+                                    <td>{p.description}</td>
+                                    <td>
+                                        <Link className="btn btn-secondary" to={`/todos/${p.todo_id}`}>View Paper</Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
     );
 }
 
