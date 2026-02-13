@@ -12,7 +12,10 @@ const cookieParser = require("cookie-parser");
 const PORT = process.env.PORT || 5000;
 
 //middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -23,6 +26,8 @@ const storage = multer.diskStorage({
     }
 });
 const upload =multer({ storage});
+
+//////////////////TODOS start///////////////////
 //make a todo
 app.post("/todos", upload.single("pdf"),async(req,res)=>{
     try {
@@ -56,8 +61,8 @@ app.get("/todos/:id", async(req, res)=>{
         console.error(err.message);
     }
 })
-//update a todo
 
+//update a todo
 app.put("/todos/:id", async(req,res) => {
     try {
         const {id} = req.params;
@@ -84,3 +89,4 @@ app.use("/uploads", express.static("uploads"));
 app.listen(PORT,()=> {
     console.log(`server has started on port ${PORT}`);
 });
+//////////////////TODOS end///////////////////
