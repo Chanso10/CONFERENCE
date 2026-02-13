@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect, useState } from "react";
 
 import EditTodo from "./EditTodo";
-
+import ViewPaper from "./PaperView";
 const ListTodos = () => {
   const [todos, setTodos] = useState([]);
 
@@ -42,9 +42,11 @@ const ListTodos = () => {
       <table className="table mt-5 text-center">
         <thead>
           <tr>
+            <th>Author</th>
             <th>Description</th>
             <th>Edit</th>
             <th>Delete</th>
+            <th>View</th>
           </tr>
         </thead>
         <tbody>
@@ -55,6 +57,7 @@ const ListTodos = () => {
           </tr> */}
           {todos.map(todo => (
             <tr key={todo.todo_id}>
+              <td>{todo.author}</td>
               <td>{todo.description}</td>
               <td>
                 <EditTodo todo={todo} />
@@ -66,6 +69,13 @@ const ListTodos = () => {
                 >
                   Delete
                 </button>
+              </td>
+              <td>
+                <button
+                 className="btn btn-danger"
+                 >
+                    Veiw
+                 </button>
               </td>
             </tr>
           ))}

@@ -2,17 +2,27 @@ const express = require("express");
 const app = express();
 const cors=require("cors");
 const pool =require("./db");
+const multer= require("multer");
+const path= require("path");
 //middleware
 app.use(cors());
 app.use(express.json());
-//make a todo
-app.post("/todos", async(req,res)=>{
-    try {
-        const {description} = req.body;
-        const newTodo=await pool.query("INSERT INTO todo (description) VALUES($1) RETURNING *",
-            [description]
-        );
 
+const storage = multer.diskStorage({
+    destination: "uploads/",
+    filename: (req,file,cb) =>{
+        cb(null,Date.now()+path.extname(file.originalname));
+    }
+});
+const upload =multer({ storage});
+//make a todo
+app.post("/todos", upload.single("pdf"),async(req,res)=>{
+    try {
+        const {author,description} = req.body;
+        const pdfPath = req.file ? `uploads/${req.file.filename}` : null;
+        const newTodo=await pool.query("INSERT INTO todo (author,description,pdf_path) VALUES($1,$2,$3) RETURNING *",
+            [author,description,pdfPath]
+        );
         res.json(newTodo.rows[0]);
     } catch (err) {
         console.error(err.message);
@@ -62,6 +72,7 @@ app.delete("/todos/:id",async (req,res)=> {
         console.error(err.message);
     }
 })
+app.use("/uploads", express.static("uploads"));
 app.listen(5000,()=> {
     console.log("server has started on port 5000");
 });
