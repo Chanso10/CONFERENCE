@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const pool =require("../db");
 
-export const protect = async (req, res, next) => {
+const protect = async (req, res, next) => {
     try {
         const token = req.cookies.token;
 
@@ -25,3 +25,5 @@ export const protect = async (req, res, next) => {
         res.status(401).json({message: "Not authorized, token failed"});
     }
 };
+
+module.exports = { protect };

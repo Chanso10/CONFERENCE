@@ -7,15 +7,17 @@ const path= require("path");
 const dotenv = require("dotenv");
 dotenv.config();
 const cookieParser = require("cookie-parser");
+const authRoutes = require("./routes/auth");
 
 //dotenv consts
 const PORT = process.env.PORT || 5000;
 
 //middleware
 app.use(cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true
 }));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -90,3 +92,6 @@ app.listen(PORT,()=> {
     console.log(`server has started on port ${PORT}`);
 });
 //////////////////TODOS end///////////////////
+
+//////////////////Login start///////////////////
+app.use("/api/auth", authRoutes);

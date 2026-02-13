@@ -1,7 +1,5 @@
 const express = require("express");
-const app = express();
-const cors=require("cors"); 
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool =require("../db");
 const dotenv = require("dotenv");
@@ -16,8 +14,8 @@ const cookieOptions = {
     maxAge: 30* 24 * 60 * 60 * 1000 // 30 days
 };
 
-const generateToken = (user) => {
-    return jwt.sign({id}, process.env.JWT_secrtet, {expiresIn: '30d'});
+const generateToken = (id) => {
+    return jwt.sign({id}, process.env.JWT_SECRET, {expiresIn: '30d'});
 };
 
 router.post("/register", async(req,res)=>{
