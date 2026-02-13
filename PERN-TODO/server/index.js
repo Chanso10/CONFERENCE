@@ -4,9 +4,17 @@ const cors=require("cors");
 const pool =require("./db");
 const multer= require("multer");
 const path= require("path");
+const dotenv = require("dotenv");
+dotenv.config();
+const cookieParser = require("cookie-parser");
+
+//dotenv consts
+const PORT = process.env.PORT || 5000;
+
 //middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 const storage = multer.diskStorage({
     destination: "uploads/",
@@ -73,6 +81,6 @@ app.delete("/todos/:id",async (req,res)=> {
     }
 })
 app.use("/uploads", express.static("uploads"));
-app.listen(5000,()=> {
-    console.log("server has started on port 5000");
+app.listen(PORT,()=> {
+    console.log(`server has started on port ${PORT}`);
 });
