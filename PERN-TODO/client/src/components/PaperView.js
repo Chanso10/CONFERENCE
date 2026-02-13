@@ -15,21 +15,32 @@ function PaperView(){
         loadPaper();
     },[id]);
 
-    if(!paper) return <div>Loading...</div>;
+    if(!paper) return <main className="app-shell"><div className="panel">Loading...</div></main>;
 
     return(
-        <div>
-            <Link to ="/">Back to Paper List</Link>
-            <h2>{paper.author}</h2>
-            <p>{paper.description}</p>
+        <main className="app-shell">
+            <section className="page-header">
+                <div>
+                    <p className="page-kicker">Paper Detail</p>
+                    <h1 className="page-title">Review Submission</h1>
+                </div>
+                <Link className="btn btn-secondary" to ="/">Back to List</Link>
+            </section>
 
-            <iframe
-                src={`http://localhost:5000/${paper.pdf_path}`}
-                width="100%"
-                height="700"
-                title="paper-pdf"
-                />
-        </div>
+            <section className="paper-view-layout">
+                <aside className="panel">
+                    <h2 className="panel-title">{paper.author}</h2>
+                    <p className="paper-description">{paper.description}</p>
+                </aside>
+
+                <article className="panel pdf-panel">
+                    <iframe
+                        src={`http://localhost:5000/${paper.pdf_path}`}
+                        title="paper-pdf"
+                    />
+                </article>
+            </section>
+        </main>
     );
 }
 
