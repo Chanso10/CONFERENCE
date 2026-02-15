@@ -15,59 +15,59 @@ const storage = multer.diskStorage({
     }
 });
 const upload =multer({ storage});
-//make a todo
-app.post("/todos", upload.single("pdf"),async(req,res)=>{
+//make a paper
+app.post("/papers", upload.single("pdf"),async(req,res)=>{
     try {
         const {author,description} = req.body;
         const pdfPath = req.file ? `uploads/${req.file.filename}` : null;
-        const newTodo=await pool.query("INSERT INTO todo (author,description,pdf_path) VALUES($1,$2,$3) RETURNING *",
+        const newPaper=await pool.query("INSERT INTO papers (author,description,pdf_path) VALUES($1,$2,$3) RETURNING *",
             [author,description,pdfPath]
         );
-        res.json(newTodo.rows[0]);
+        res.json(newPaper.rows[0]);
     } catch (err) {
         console.error(err.message);
     }
 })
-//get all todos
-app.get("/todos", async(req,res)=>{
+//get all papers
+app.get("/papers", async(req,res)=>{
     try {
-        const allTodos=await pool.query("SELECT * FROM todo");
-        res.json(allTodos.rows)
+        const allPapers=await pool.query("SELECT * FROM papers");
+        res.json(allPapers.rows)
     } catch (err) {
         console.error(err.message);
     }
 })
-//get a todo
-app.get("/todos/:id", async(req, res)=>{
+//get a paper
+app.get("/papers/:id", async(req, res)=>{
     try {
         const{id}=req.params;
-        const todo = await pool.query("SELECT * FROM todo WHERE todo_id= $1", [id]);
+        const paper = await pool.query("SELECT * FROM papers WHERE paper_id= $1", [id]);
 
-        res.json(todo.rows[0]);
+        res.json(paper.rows[0]);
     } catch (err) {
         console.error(err.message);
     }
 })
-//update a todo
+//update a paper
 
-app.put("/todos/:id", async(req,res) => {
+app.put("/papers/:id", async(req,res) => {
     try {
         const {id} = req.params;
         const {description} =req.body;
-        const updateTodo = await pool.query("UPDATE todo SET description = $1 WHERE todo_id = $2", [description, id]);
-        res.json("Todo was updated")
+        const updatePaper = await pool.query("UPDATE papers SET description = $1 WHERE paper_id = $2", [description, id]);
+        res.json("Paper was updated")
     } catch (error) {
-        console.error(err.message);
+        console.error(error.message);
     }
 })
 
-//delete a todo
+//delete a paper
 
-app.delete("/todos/:id",async (req,res)=> {
+app.delete("/papers/:id",async (req,res)=> {
     try {
         const{id}=req.params;
-        const deleteTodo=await pool.query("DELETE FROM todo WHERE todo_id = $1",[id]);
-        res.json("Todo was deleted")
+        const deletePaper=await pool.query("DELETE FROM papers WHERE paper_id = $1",[id]);
+        res.json("Paper was deleted")
     } catch (err) {
         console.error(err.message);
     }

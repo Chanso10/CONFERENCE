@@ -1,10 +1,10 @@
 const Pool = require("pg").Pool;
 const pool= new Pool({
-    user:"perntodo_app",
+    user:"bconf",
     password:"g0valp0",
     host:"localhost",
     port:5432,
-    database:"perntodo"
+    database:"bconf"
 });
 
 module.exports = pool;

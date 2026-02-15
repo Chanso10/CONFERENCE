@@ -1,6 +1,6 @@
 import React, { Fragment, useState } from "react";
 
-const InputTodo = () =>{
+const InputPaper = () =>{
 
     const [description, setDescription]=useState("")
 
@@ -8,7 +8,7 @@ const InputTodo = () =>{
         e.preventDefault();
         try {
             const body = {description};
-            const response = await fetch ("http://localhost:5000/todos",{
+            const response = await fetch ("http://localhost:5000/papers",{
             method: "POST",
             headers:{"Content-Type": "application/json"},
             body: JSON.stringify(body)
@@ -31,4 +31,4 @@ const InputTodo = () =>{
     );
 };
 
-export default InputTodo;
+export default InputPaper;

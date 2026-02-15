@@ -7,7 +7,7 @@ function PaperView(){
 
     useEffect(()=>{
         const loadPaper=async()=>{
-            const res=await fetch(`http://localhost:5000/todos/${id}`);
+            const res=await fetch(`http://localhost:5000/papers/${id}`);
             const data=await res.json();
             setPaper(data);
         }

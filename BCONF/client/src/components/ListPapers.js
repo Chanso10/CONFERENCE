@@ -1,40 +1,38 @@
 import React, { Fragment, useEffect, useState } from "react";
 
-import EditTodo from "./EditTodo";
-import ViewPaper from "./PaperView";
-const ListTodos = () => {
-  const [todos, setTodos] = useState([]);
+const ListPapers = () => {
+  const [papers, setPapers] = useState([]);
 
-  //delete todo function
+  //delete paper function
 
-  const deleteTodo = async id => {
+  const deletePaper = async id => {
     try {
-      const deleteTodo = await fetch(`http://localhost:5000/todos/${id}`, {
+      const deletePaper = await fetch(`http://localhost:5000/papers/${id}`, {
         method: "DELETE"
       });
 
-      setTodos(todos.filter(todo => todo.todo_id !== id));
+      setPapers(papers.filter(paper => paper.paper_id !== id));
     } catch (err) {
       console.error(err.message);
     }
   };
 
-  const getTodos = async () => {
+  const getPapers = async () => {
     try {
-      const response = await fetch("http://localhost:5000/todos");
+      const response = await fetch("http://localhost:5000/papers");
       const jsonData = await response.json();
 
-      setTodos(jsonData);
+      setPapers(jsonData);
     } catch (err) {
       console.error(err.message);
     }
   };
 
   useEffect(() => {
-    getTodos();
+    getPapers();
   }, []);
 
-  console.log(todos);
+  console.log(papers);
 
   return (
     <Fragment>
@@ -55,17 +53,15 @@ const ListTodos = () => {
             <td>Doe</td>
             <td>john@example.com</td>
           </tr> */}
-          {todos.map(todo => (
-            <tr key={todo.todo_id}>
-              <td>{todo.author}</td>
-              <td>{todo.description}</td>
-              <td>
-                <EditTodo todo={todo} />
+          {papers.map(paper => (
+            <tr key={paper.paper_id}>
+              <td>{paper.author}</td>
+              <td>{paper.description}
               </td>
               <td>
                 <button
                   className="btn btn-danger"
-                  onClick={() => deleteTodo(todo.todo_id)}
+                  onClick={() => deletePaper(paper.paper_id)}
                 >
                   Delete
                 </button>
@@ -85,4 +81,4 @@ const ListTodos = () => {
   );
 };
 
-export default ListTodos;
+export default ListPapers;

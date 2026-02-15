@@ -1,7 +1,7 @@
-DROP TABLE IF EXISTS papers;
+DROP TABLE IF EXISTS todo;
 
-CREATE TABLE papers(
-  paper_id SERIAL PRIMARY KEY,
+CREATE TABLE todo(
+  todo_id SERIAL PRIMARY KEY,
   author VARCHAR(255),
   description VARCHAR(255),
   pdf_path VARCHAR(255),

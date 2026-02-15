@@ -9,7 +9,7 @@ function PaperList(){
     const [pdf, setPdf]=useState(null);
 
     const  loadPapers= async()=>{
-        const res = await fetch("http://localhost:5000/todos");
+        const res = await fetch("http://localhost:5000/papers");
         const data= await res.json();
         setPapers(data);
     };
@@ -25,7 +25,7 @@ function PaperList(){
         formData.append("description", description);
         formData.append("pdf", pdf);
 
-        await fetch("http://localhost:5000/todos",{
+        await fetch("http://localhost:5000/papers",{
             method:"POST",
             body: formData
         });
@@ -96,7 +96,7 @@ function PaperList(){
                                     <td className="author-cell">{p.author}</td>
                                     <td>{p.description}</td>
                                     <td>
-                                        <Link className="btn btn-secondary" to={`/todos/${p.todo_id}`}>View Paper</Link>
+                                        <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>
                                     </td>
                                 </tr>
                             ))}
