@@ -24,7 +24,7 @@ function PaperView(){
                     <p className="page-kicker">Paper Detail</p>
                     <h1 className="page-title">Review Submission</h1>
                 </div>
-                <Link className="btn btn-secondary" to ="/">Back to List</Link>
+                <Link className="btn btn-secondary" to ="/papers">Back to List</Link>
             </section>
 
             <section className="paper-view-layout">
