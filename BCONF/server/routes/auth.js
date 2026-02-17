@@ -40,13 +40,13 @@ router.post("/register", async (req, res) => {
     const isFirstUser = await pool.query("SELECT COUNT(*) FROM users");
     if (parseInt(isFirstUser.rows[0].count) === 0) {
         newUser = await pool.query(
-            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'admin') RETURNING id, name, email", 
+            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'admin') RETURNING id, name, email, role", 
                 [name, email, hashedPassword ]
         );
     }
     else{
         newUser = await pool.query(
-            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email", 
+            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, role", 
                 [name, email, hashedPassword ]
         );
     }
@@ -79,7 +79,7 @@ router.post("/login", async (req, res) => {
     const token = genToken(userData.id);
     res.cookie("token", token, cookieOptions);
 
-    res.json({ user: { id: userData.id, name: userData.name, email: userData.email } });
+    res.json({ user: { id: userData.id, name: userData.name, email: userData.email, role: userData.role } });
 
 });
 
