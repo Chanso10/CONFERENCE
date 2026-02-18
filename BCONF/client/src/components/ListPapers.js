@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useState } from "react";
+import axios from "axios";
 
 const ListPapers = () => {
   const [papers, setPapers] = useState([]);
@@ -7,10 +8,7 @@ const ListPapers = () => {
 
   const deletePaper = async id => {
     try {
-      const deletePaper = await fetch(`http://localhost:5000/papers/${id}`, {
-        method: "DELETE"
-      });
-
+      await axios.delete(`http://localhost:5000/papers/${id}`);
       setPapers(papers.filter(paper => paper.paper_id !== id));
     } catch (err) {
       console.error(err.message);
@@ -19,12 +17,11 @@ const ListPapers = () => {
 
   const getPapers = async () => {
     try {
-      const response = await fetch("http://localhost:5000/papers");
-      const jsonData = await response.json();
-
-      setPapers(jsonData);
+      const response = await axios.get("http://localhost:5000/papers");
+      setPapers(response.data);
     } catch (err) {
       console.error(err.message);
+      setPapers([]);
     }
   };
 

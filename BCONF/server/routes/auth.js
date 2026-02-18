@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const dotenv = require("dotenv");
-const { protect } = require("../middleware/auth");
+const { protect, requireAdmin } = require("../middleware/auth");
 dotenv.config();
 
 const router = express.Router();
@@ -46,7 +46,7 @@ router.post("/register", async (req, res) => {
     }
     else{
         newUser = await pool.query(
-            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, role", 
+            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'author') RETURNING id, name, email, role", 
                 [name, email, hashedPassword ]
         );
     }
@@ -92,6 +92,43 @@ router.get("/me", protect, async (req, res) => {
 router.post("/logout", protect, (req, res) => {
     res.clearCookie("token", cookieOptions);
     res.json({ message: "Logged out successfully" });
+});
+
+// Get all users (admin only)
+router.get("/users", protect, requireAdmin, async (req, res) => {
+    try {
+        const users = await pool.query("SELECT id, name, email, role FROM users");
+        res.json(users.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Update user role (admin only)
+router.put("/users/:id/role", protect, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['author', 'admin', 'editor'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+    }
+
+    try {
+        const updatedUser = await pool.query(
+            "UPDATE users SET role = $1 WHERE id = $2 RETURNING id, name, email, role",
+            [role, id]
+        );
+
+        if (updatedUser.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(updatedUser.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
 module.exports = router;

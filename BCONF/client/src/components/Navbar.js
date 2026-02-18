@@ -22,7 +22,10 @@ const Navbar = ({user, setUser}) => {
     return <nav className="">
         <Link to="/" >Home</Link>
         <div>{user ? (
-            <button onClick={handleLogout}>Logout</button>
+            <>
+                <button onClick={handleLogout}>Logout</button>
+                {user.role === 'admin' && <Link to="/users">Manage Users</Link>}
+            </>
         ) : (
             <><button onClick={handleLogin}>Login</button>
             <button onClick={handleRegister}>Register</button>

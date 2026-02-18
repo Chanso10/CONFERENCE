@@ -9,7 +9,7 @@ const protect = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await pool.query("SELECT id, name, email FROM users WHERE id = $1", [decoded.id]);
+        const user = await pool.query("SELECT id, name, email, role FROM users WHERE id = $1", [decoded.id]);
 
         if (user.rows.length === 0) {
             return res.status(401).json({ message: "Not authorized, user not found" });
@@ -23,4 +23,16 @@ const protect = async (req, res, next) => {
     }
 };
 
-module.exports = { protect };
+const requireRole = (role) => {
+    return (req, res, next) => {
+        if (req.user.role !== role) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+        next();
+    };
+};
+
+const requireAdmin = requireRole('admin');
+const requireAuthor = requireRole('author'); 
+
+module.exports = { protect, requireAdmin, requireAuthor };

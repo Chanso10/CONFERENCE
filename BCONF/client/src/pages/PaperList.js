@@ -1,17 +1,23 @@
 import React, {useEffect, useState} from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 
-function PaperList(){
+function PaperList({ user }){
     const [papers, setPapers]=useState([]);
     const [showForm, setShowForm]=useState(false);
-    const [author, setAuthor]=useState("");
     const [description, setDescription]=useState("");
     const [pdf, setPdf]=useState(null);
+    const [error, setError]=useState("");
 
     const  loadPapers= async()=>{
-        const res = await fetch("http://localhost:5000/papers");
-        const data= await res.json();
-        setPapers(data);
+        try {
+            const res = await axios.get("http://localhost:5000/papers");
+            setPapers(res.data);
+            setError("");
+        } catch (err) {
+            setError("Failed to load papers");
+            setPapers([]);
+        }
     };
 
     useEffect(()=>{
@@ -21,41 +27,37 @@ function PaperList(){
     const submitPaper= async e=>{
         e.preventDefault();
         const formData=new FormData();
-        formData.append("author", author);
         formData.append("description", description);
         formData.append("pdf", pdf);
 
-        await fetch("http://localhost:5000/papers",{
-            method:"POST",
-            body: formData
-        });
-        await loadPapers();
-        setShowForm(false);
-        setAuthor("");
-        setDescription("");
-        setPdf(null);
+        try {
+            await axios.post("http://localhost:5000/papers", formData);
+            await loadPapers();
+            setShowForm(false);
+            setDescription("");
+            setPdf(null);
+        } catch (err) {
+            setError("Failed to submit paper");
+        }
     };
     return(
         <main className="app-shell">
+            {error && <div className="error">{error}</div>}
             <section className="page-header">
                 <div>
                     <p className="page-kicker">Conference Portal</p>
                     <h1 className="page-title">Paper Submissions</h1>
                     <p className="page-subtitle">Track, review, and access submitted papers from one clean workspace.</p>
                 </div>
-                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)}>
+                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)} disabled={user.role === 'editor'}>
                     {showForm ? "Close Form" : "Submit New Paper"}
                 </button>
             </section>
 
-            {showForm && (
+            {showForm && user.role !== 'editor' && (
                 <form className="panel paper-form" onSubmit={submitPaper}>
                     <h2 className="panel-title">New Submission</h2>
                     <div className="form-grid">
-                        <label className="field">
-                            <span>Author</span>
-                            <input type="text" placeholder="Author name" value={author} onChange={e=> setAuthor(e.target.value)} required/>
-                        </label>
                         <label className="field">
                             <span>Description</span>
                             <input type="text" placeholder="Paper summary" value={description} onChange={e=> setDescription(e.target.value)} required/>
@@ -92,11 +94,13 @@ function PaperList(){
                                 </tr>
                             )}
                             {papers.map((p)=>(
-                                <tr key={p.todo_id}>
+                                <tr key={p.paper_id}>
                                     <td className="author-cell">{p.author}</td>
                                     <td>{p.description}</td>
                                     <td>
-                                        <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>
+                                        {(user.role === 'admin' || user.role === 'editor' || p.author_id === user.id) && (
+                                            <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
