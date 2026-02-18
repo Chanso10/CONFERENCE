@@ -49,12 +49,12 @@ function PaperList({ user }){
                     <h1 className="page-title">Paper Submissions</h1>
                     <p className="page-subtitle">Track, review, and access submitted papers from one clean workspace.</p>
                 </div>
-                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)} disabled={user.role === 'editor'}>
+                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)} disabled={user.role === 'reviewer'}>
                     {showForm ? "Close Form" : "Submit New Paper"}
                 </button>
             </section>
 
-            {showForm && user.role !== 'editor' && (
+            {showForm && user.role !== 'reviewer' && (
                 <form className="panel paper-form" onSubmit={submitPaper}>
                     <h2 className="panel-title">New Submission</h2>
                     <div className="form-grid">
@@ -98,7 +98,7 @@ function PaperList({ user }){
                                     <td className="author-cell">{p.author}</td>
                                     <td>{p.description}</td>
                                     <td>
-                                        {(user.role === 'admin' || user.role === 'editor' || p.author_id === user.id) && (
+                                        {(user.role === 'admin' || user.role === 'reviewer' || p.author_id === user.id) && (
                                             <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>
                                         )}
                                     </td>

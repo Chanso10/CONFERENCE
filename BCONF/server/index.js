@@ -30,8 +30,8 @@ const upload =multer({ storage});
 //make a paper
 app.post("/papers", protect, upload.single("pdf"),async(req,res)=>{
     try {
-        const {description} = req.body;        if (req.user.role === 'editor') {
-            return res.status(403).json({ message: "Editors cannot submit papers" });
+        const {description} = req.body;        if (req.user.role === 'reviewer') {
+            return res.status(403).json({ message: "Reviewers cannot submit papers" });
         }        const pdfPath = req.file ? `uploads/${req.file.filename}` : null;
         const newPaper=await pool.query("INSERT INTO papers (author,description,pdf_path, author_id) VALUES($1,$2,$3, $4) RETURNING *",
             [req.user.name, description, pdfPath, req.user.id]
@@ -59,7 +59,7 @@ app.get("/papers/:id", protect, async(req, res)=>{
             return res.status(400).json({ message: "Invalid paper ID" });
         }
         let paper;
-        if (req.user.role === 'admin' || req.user.role === 'editor') {
+        if (req.user.role === 'admin' || req.user.role === 'reviewer') {
             paper = await pool.query("SELECT * FROM papers WHERE paper_id= $1", [paperId]);
         } else {
             paper = await pool.query("SELECT * FROM papers WHERE paper_id= $1 AND author_id = $2", [paperId, req.user.id]);
@@ -140,7 +140,7 @@ app.get("/papers/:id/ratings", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
         // Check if user can view ratings
-        if (req.user.role !== 'admin' && req.user.role !== 'editor') {
+        if (req.user.role !== 'admin' && req.user.role !== 'reviewer') {
             // Check if user is the author
             const paper = await pool.query("SELECT author_id FROM papers WHERE paper_id = $1", [paperId]);
             if (paper.rows.length === 0 || paper.rows[0].author_id !== req.user.id) {
@@ -155,7 +155,7 @@ app.get("/papers/:id/ratings", protect, async (req, res) => {
     }
 });
 
-// Add rating to a paper (only editors)
+// Add rating to a paper (only reviewers)
 app.post("/papers/:id/ratings", protect, async (req, res) => {
     try {
         const { id } = req.params;
@@ -164,8 +164,8 @@ app.post("/papers/:id/ratings", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
         const { rating } = req.body;
-        if (req.user.role !== 'editor') {
-            return res.status(403).json({ message: "Only editors can add ratings" });
+        if (req.user.role !== 'reviewer') {
+            return res.status(403).json({ message: "Only reviewers can add ratings" });
         }
         if (rating < 1 || rating > 5) {
             return res.status(400).json({ message: "Rating must be between 1 and 5" });

@@ -38,7 +38,6 @@ function PaperView({ user }){
         e.preventDefault();
         try {
             await axios.post(`http://localhost:5000/papers/${id}/ratings`, { rating: parseInt(newRating) });
-            // Reload ratings
             const res = await axios.get(`http://localhost:5000/papers/${id}/ratings`);
             setRatings(res.data);
             setNewRating("");
@@ -64,7 +63,7 @@ function PaperView({ user }){
                 <aside className="panel">
                     <h2 className="panel-title">{paper.author}</h2>
                     <p className="paper-description">{paper.description}</p>
-                    {user && user.role === 'editor' && (
+                    {user && user.role === 'reviewer' && (
                         <form onSubmit={submitRating} className="rating-form">
                             <label>
                                 Rating (1-5):

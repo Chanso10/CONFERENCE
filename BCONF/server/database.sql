@@ -21,5 +21,6 @@ CREATE TABLE ratings (
   id SERIAL PRIMARY KEY,
   paper_id INTEGER REFERENCES papers(paper_id),
   editor_id INTEGER REFERENCES users(id),
-  rating INTEGER CHECK (rating BETWEEN 1 AND 5)
+  rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+  review TEXT
   );
