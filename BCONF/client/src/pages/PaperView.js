@@ -46,8 +46,8 @@ function PaperView({ user }){
         }
     };
 
-    if(error) return <main className="app-shell"><div className="panel error">{error}</div></main>;
-    if(!paper) return <main className="app-shell"><div className="panel">Loading...</div></main>;
+    if(error) return <main className="app-shell"><div className="error">{error}</div></main>;
+    if(!paper) return <main className="app-shell"><section className="panel loading-panel">Loading...</section></main>;
 
     return(
         <main className="app-shell">
@@ -65,9 +65,9 @@ function PaperView({ user }){
                     <p className="paper-description">{paper.description}</p>
                     {user && user.role === 'reviewer' && (
                         <form onSubmit={submitRating} className="rating-form">
-                            <label>
-                                Rating (1-5):
-                                <select value={newRating} onChange={e => setNewRating(e.target.value)} required>
+                            <label className="field">
+                                <span>Rating (1-5)</span>
+                                <select className="role-select" value={newRating} onChange={e => setNewRating(e.target.value)} required>
                                     <option value="">Select</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
@@ -76,7 +76,7 @@ function PaperView({ user }){
                                     <option value="5">5</option>
                                 </select>
                             </label>
-                            <button type="submit">Submit Rating</button>
+                            <button type="submit" className="btn btn-primary">Submit Rating</button>
                         </form>
                     )}
                 </aside>
@@ -91,12 +91,16 @@ function PaperView({ user }){
 
             {ratings.length > 0 && (
                 <section className="panel">
-                    <h2>Reviews</h2>
+                    <div className="table-head">
+                        <h2 className="panel-title">Reviews</h2>
+                    </div>
+                    <div className="review-list">
                     {ratings.map(r => (
                         <div key={r.id} className="review">
-                            <p>Reviewer {r.editor_id}: Rating {r.rating}/5</p>
+                            Reviewer {r.editor_id}: Rating {r.rating}/5
                         </div>
                     ))}
+                    </div>
                 </section>
             )}
         </main>

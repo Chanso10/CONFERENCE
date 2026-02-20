@@ -23,14 +23,27 @@ const Login = ({setUser}) => {
 
 
     return <div className="app-shell">
-        <form className="login-form" onSubmit={handleSubmit}>
-            <h2>Login</h2>
+        <section className="page-header">
+            <div>
+                <p className="page-kicker">Account Access</p>
+                <h1 className="page-title">Login</h1>
+                <p className="page-subtitle">Sign in to access your conference workspace.</p>
+            </div>
+        </section>
+        <form className="panel auth-card auth-form" onSubmit={handleSubmit}>
+            <h2 className="panel-title">Welcome Back</h2>
             {error && <p className="error">{error}</p>}
-            <input type="email" placeholder="email" className="border p-2 w-full mb-3" value={form.email}
+            <label className="field">
+                <span>Email</span>
+                <input type="email" placeholder="you@email.com" value={form.email}
             onChange={(e) => setForm({...form, email: e.target.value})}/>
-            <input type="password" placeholder="password" className="border p-2 w-full mb-3" value={form.password}
+            </label>
+            <label className="field">
+                <span>Password</span>
+                <input type="password" placeholder="Enter password" value={form.password}
             onChange={(e) => setForm({...form, password: e.target.value})}/>
-            <button className="btn btn-primary">Login</button>
+            </label>
+            <button className="btn btn-primary" type="submit">Login</button>
         </form>
     </div>;
 };

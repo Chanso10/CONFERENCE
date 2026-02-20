@@ -37,6 +37,63 @@ body {
   gap: 1.5rem;
 }
 
+.top-nav-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0.9rem 1.5rem;
+  background: rgba(248, 251, 253, 0.9);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+
+.top-nav {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  text-decoration: none;
+  color: var(--text);
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.nav-links,
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: #edf3f7;
+}
+
+.user-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f4f8fb;
+  padding: 0.38rem 0.72rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -104,7 +161,10 @@ body {
 }
 
 input[type="text"],
-input[type="file"] {
+input[type="email"],
+input[type="password"],
+input[type="file"],
+select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -115,7 +175,10 @@ input[type="file"] {
 }
 
 input[type="text"]:focus,
-input[type="file"]:focus {
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="file"]:focus,
+select:focus {
   outline: none;
   border-color: #91b3cb;
   box-shadow: 0 0 0 4px rgba(17, 105, 153, 0.12);
@@ -157,6 +220,42 @@ input[type="file"]:focus {
 
 .btn-secondary:hover {
   background: #e8edf1;
+}
+
+.error {
+  padding: 0.72rem 0.9rem;
+  background: #fff4f2;
+  border: 1px solid #f5c9c1;
+  color: #8b2f24;
+  border-radius: 10px;
+}
+
+.loading-panel {
+  padding: 1.4rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.home-panel,
+.auth-card,
+.not-found-panel {
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.auth-card {
+  width: min(520px, 100%);
+}
+
+.auth-form {
+  animation: fade-up 420ms ease-out;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
 }
 
 .table-panel {
@@ -232,6 +331,30 @@ input[type="file"]:focus {
   line-height: 1.6;
 }
 
+.rating-form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.role-select {
+  max-width: 180px;
+}
+
+.review-list {
+  padding: 0.9rem 1.2rem 1.2rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.review {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fbfdff;
+  color: var(--muted);
+}
+
 .pdf-panel {
   padding: 0;
   overflow: hidden;
@@ -265,6 +388,21 @@ input[type="file"]:focus {
     align-items: stretch;
   }
 
+  .top-nav-wrap {
+    padding: 0.8rem;
+  }
+
+  .top-nav {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-links,
+  .nav-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -275,5 +413,9 @@ input[type="file"]:focus {
 
   .btn {
     width: 100%;
+  }
+
+  .nav-actions .btn {
+    width: auto;
   }
 }

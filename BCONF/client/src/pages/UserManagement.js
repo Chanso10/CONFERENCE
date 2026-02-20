@@ -45,7 +45,7 @@ function UserManagement() {
                     <p className="table-meta">{users.length} total</p>
                 </div>
                 <div className="table-wrap">
-                    <table className="user-table">
+                    <table className="paper-table">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -67,6 +67,7 @@ function UserManagement() {
                                     <td>{u.role}</td>
                                     <td>
                                         <select
+                                            className="role-select"
                                             value={u.role}
                                             onChange={(e) => updateRole(u.id, e.target.value)}
                                         >

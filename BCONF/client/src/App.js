@@ -1,9 +1,8 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import './App.css';
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import PaperList from "./pages/PaperList";
 import PaperView from "./pages/PaperView";
-import ListPapers from "./components/ListPapers";
 import Navbar from "./components/Navbar";
 import NotFound from "./components/NotFound";
 import UserManagement from "./pages/UserManagement";
@@ -35,7 +34,7 @@ function App() {
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <main className="app-shell"><section className="panel loading-panel">Loading...</section></main>;
   }
 
 
