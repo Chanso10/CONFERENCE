@@ -9,6 +9,7 @@ import UserManagement from "./pages/UserManagement";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ReviewManagement from "./pages/ReviewManagement";
 import axios from "axios";
 
 axios.defaults.withCredentials = true; 
@@ -16,7 +17,7 @@ axios.defaults.withCredentials = true;
 // components
 function App() {
   const [user, setUser] = useState(null);
-  const [error, setError] = useState("");
+  const [error] = useState("");
   const [ loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ function App() {
         <Route path="/register" element={user ? <Navigate to="/"/> : <Register setUser={setUser}/>} />
         <Route path="/papers" element={user ? <PaperList user={user} /> : <Navigate to="/login" />} />
         <Route path="/papers/:id" element={user ? <PaperView user={user} /> : <Navigate to="/login" />} />
+        <Route path="/management" element={user && (user.role === 'admin' || user.role === 'deputy') ? <ReviewManagement /> : <Navigate to="/" />} />
         <Route path="/users" element={user && user.role === 'admin' ? <UserManagement /> : <Navigate to="/" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

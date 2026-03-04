@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS paper_assignment_feedback;
+DROP TABLE IF EXISTS paper_assignments;
+DROP TABLE IF EXISTS paper_bids;
 DROP TABLE IF EXISTS paper_reviews;
 DROP TABLE IF EXISTS ratings;
 DROP TABLE IF EXISTS papers;
@@ -14,6 +17,7 @@ CREATE TABLE users (
 
 CREATE TABLE papers(
   paper_id SERIAL PRIMARY KEY,
+  title VARCHAR(255),
   author VARCHAR(255),
   description VARCHAR(255),
   pdf_path VARCHAR(255),
@@ -48,3 +52,51 @@ CREATE INDEX paper_reviews_paper_parent_idx
 
 CREATE INDEX paper_reviews_author_idx
   ON paper_reviews (author_id, created_at DESC);
+
+CREATE TABLE paper_bids (
+  bid_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+  reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  locked_at TIMESTAMP,
+  UNIQUE (paper_id, reviewer_id)
+);
+
+CREATE INDEX paper_bids_paper_idx
+  ON paper_bids (paper_id, created_at DESC);
+
+CREATE INDEX paper_bids_reviewer_idx
+  ON paper_bids (reviewer_id, created_at DESC);
+
+CREATE TABLE paper_assignments (
+  assignment_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+  reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assigned_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (paper_id, reviewer_id)
+);
+
+CREATE INDEX paper_assignments_paper_idx
+  ON paper_assignments (paper_id, created_at DESC);
+
+CREATE INDEX paper_assignments_reviewer_idx
+  ON paper_assignments (reviewer_id, created_at DESC);
+
+CREATE TABLE paper_assignment_feedback (
+  feedback_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+  reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  anti_bid BOOLEAN NOT NULL DEFAULT FALSE,
+  reason TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (paper_id, reviewer_id)
+);
+
+CREATE INDEX paper_assignment_feedback_paper_idx
+  ON paper_assignment_feedback (paper_id, updated_at DESC);
+
+CREATE INDEX paper_assignment_feedback_reviewer_idx
+  ON paper_assignment_feedback (reviewer_id, updated_at DESC);

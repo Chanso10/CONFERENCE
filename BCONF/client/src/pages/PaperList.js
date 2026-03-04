@@ -5,9 +5,11 @@ import axios from "axios";
 function PaperList({ user }){
     const [papers, setPapers]=useState([]);
     const [showForm, setShowForm]=useState(false);
+    const [title, setTitle]=useState("");
     const [description, setDescription]=useState("");
     const [pdf, setPdf]=useState(null);
     const [error, setError]=useState("");
+    const [busyBidPaperId, setBusyBidPaperId] = useState(null);
 
     const  loadPapers= async()=>{
         try {
@@ -27,6 +29,7 @@ function PaperList({ user }){
     const submitPaper= async e=>{
         e.preventDefault();
         const formData=new FormData();
+        formData.append("title", title);
         formData.append("description", description);
         formData.append("pdf", pdf);
 
@@ -34,12 +37,68 @@ function PaperList({ user }){
             await axios.post("http://localhost:5000/papers", formData);
             await loadPapers();
             setShowForm(false);
+            setTitle("");
             setDescription("");
             setPdf(null);
+            setError("");
         } catch (err) {
-            setError("Failed to submit paper");
+            setError(err.response?.data?.message || "Failed to submit paper");
         }
     };
+
+    const addBid = async (paperId) => {
+        setBusyBidPaperId(paperId);
+        try {
+            await axios.post(`http://localhost:5000/papers/${paperId}/bid`);
+            await loadPapers();
+            setError("");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to place bid");
+        } finally {
+            setBusyBidPaperId(null);
+        }
+    };
+
+    const removeBid = async (paperId) => {
+        setBusyBidPaperId(paperId);
+        try {
+            await axios.delete(`http://localhost:5000/papers/${paperId}/bid`);
+            await loadPapers();
+            setError("");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to remove bid");
+        } finally {
+            setBusyBidPaperId(null);
+        }
+    };
+
+    const isReviewer = user.role === "reviewer";
+    const canViewPaper = (paper) => {
+        if (user.role === "reviewer") {
+            return Boolean(paper.is_assigned || paper.is_authored_by_me);
+        }
+        return user.role === "admin" || user.role === "deputy" || paper.author_id === user.id;
+    };
+
+    const reviewerStatus = (paper) => {
+        if (paper.is_assigned) {
+            if (paper.anti_bid) {
+                return "Assigned (Anti-bid submitted)";
+            }
+            return "Assigned";
+        }
+        if (paper.bid_locked) {
+            return "Bid locked";
+        }
+        if (paper.has_bid) {
+            return "Interested";
+        }
+        if (paper.is_authored_by_me) {
+            return "Authored by you";
+        }
+        return "Unassigned";
+    };
+
     return(
         <main className="app-shell">
             {error && <div className="error">{error}</div>}
@@ -47,17 +106,21 @@ function PaperList({ user }){
                 <div>
                     <p className="page-kicker">Conference Portal</p>
                     <h1 className="page-title">Paper Submissions</h1>
-                    <p className="page-subtitle">Track, review, and access submitted papers from one clean workspace.</p>
+                    <p className="page-subtitle">Track, review, and access submitted papers.</p>
                 </div>
-                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)} disabled={user.role === 'reviewer'}>
+                <button className="btn btn-primary" onClick={()=> setShowForm(!showForm)} disabled={isReviewer}>
                     {showForm ? "Close Form" : "Submit New Paper"}
                 </button>
             </section>
 
-            {showForm && user.role !== 'reviewer' && (
+            {showForm && !isReviewer && (
                 <form className="panel paper-form" onSubmit={submitPaper}>
                     <h2 className="panel-title">New Submission</h2>
                     <div className="form-grid">
+                        <label className="field">
+                            <span>Title</span>
+                            <input type="text" placeholder="Paper title" value={title} onChange={e=> setTitle(e.target.value)} required/>
+                        </label>
                         <label className="field">
                             <span>Description</span>
                             <input type="text" placeholder="Paper summary" value={description} onChange={e=> setDescription(e.target.value)} required/>
@@ -82,24 +145,52 @@ function PaperList({ user }){
                     <table className="paper-table">
                         <thead>
                             <tr>
-                                <th>Author</th>
+                                <th>Title</th>
+                                {!isReviewer && <th>Author</th>}
                                 <th>Description</th>
+                                {isReviewer && <th>Status</th>}
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {papers.length === 0 && (
                                 <tr>
-                                    <td className="empty-state" colSpan="3">No papers submitted yet.</td>
+                                    <td className="empty-state" colSpan={isReviewer ? 4 : 4}>No papers submitted yet.</td>
                                 </tr>
                             )}
                             {papers.map((p)=>(
                                 <tr key={p.paper_id}>
-                                    <td className="author-cell">{p.author}</td>
+                                    <td className="author-cell">{p.title || "Untitled Paper"}</td>
+                                    {!isReviewer && <td className="author-cell">{p.author}</td>}
                                     <td>{p.description}</td>
+                                    {isReviewer && <td>{reviewerStatus(p)}</td>}
                                     <td>
-                                        {(user.role === 'admin' || user.role === 'reviewer' || p.author_id === user.id) && (
+                                        {canViewPaper(p) && (
                                             <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>
+                                        )}
+                                        {isReviewer && !p.is_assigned && !p.is_authored_by_me && !p.has_bid && (
+                                            <button
+                                                className="btn btn-primary"
+                                                type="button"
+                                                onClick={() => addBid(p.paper_id)}
+                                                disabled={busyBidPaperId === p.paper_id}
+                                            >
+                                                Bid Interested
+                                            </button>
+                                        )}
+                                        {isReviewer && !p.is_assigned && p.has_bid && !p.bid_locked && (
+                                            <button
+                                                className="btn btn-secondary"
+                                                type="button"
+                                                onClick={() => removeBid(p.paper_id)}
+                                                disabled={busyBidPaperId === p.paper_id}
+                                            >
+                                                Remove Bid
+                                            </button>
+                                        )}
+                                        
+                                        {isReviewer && p.bid_locked && !p.is_assigned && (
+                                            <span className="table-meta">Bid locked</span>
                                         )}
                                     </td>
                                 </tr>

@@ -73,6 +73,7 @@ function UserManagement() {
                                         >
                                             <option value="author">Author</option>
                                             <option value="admin">Admin</option>
+                                            <option value="deputy">Deputy</option>
                                             <option value="reviewer">Reviewer</option>
                                         </select>
                                     </td>

@@ -20,6 +20,9 @@ const Home = ({user, error}) => {
                     <p className="page-subtitle">Signed in as {user.email}</p>
                     <div className="auth-actions">
                         <Link to="/papers" className="btn btn-primary">Open Papers</Link>
+                        {(user.role === "admin" || user.role === "deputy") && (
+                            <Link to="/management" className="btn btn-secondary">Manage Reviews</Link>
+                        )}
                         {user.role === "admin" && (
                             <Link to="/users" className="btn btn-secondary">Manage Users</Link>
                         )}
