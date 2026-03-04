@@ -164,6 +164,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="file"],
+textarea,
 select {
   width: 100%;
   border: 1px solid var(--line);
@@ -178,10 +179,16 @@ input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="file"]:focus,
+textarea:focus,
 select:focus {
   outline: none;
   border-color: #91b3cb;
   box-shadow: 0 0 0 4px rgba(17, 105, 153, 0.12);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 110px;
 }
 
 .form-actions {
@@ -348,11 +355,71 @@ select:focus {
 }
 
 .review {
-  padding: 0.65rem 0.75rem;
+  padding: 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: #fbfdff;
+  color: var(--text);
+}
+
+.discussion-form {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.form-error {
+  margin: 0;
+  color: #8b2f24;
+  font-size: 0.86rem;
+}
+
+.review-empty {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fbfdff;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.review-author-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-author {
+  font-weight: 700;
+}
+
+.review-role-badge {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--muted);
+  background: #eef4f8;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.14rem 0.45rem;
+}
+
+.review-time {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.review-body {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .pdf-panel {

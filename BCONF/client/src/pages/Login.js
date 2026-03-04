@@ -16,7 +16,7 @@ const Login = ({setUser}) => {
             setUser(res.data.user);
             navigate("/");
         } catch (error) {
-            setError("Invalid email or password");
+            setError(error.response?.data?.message || "Login failed");
         }
     };
 
