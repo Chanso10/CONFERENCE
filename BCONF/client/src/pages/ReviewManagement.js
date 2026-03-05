@@ -126,12 +126,13 @@ function ReviewManagement() {
                 <div>
                     <p className="page-kicker">Chair Panel</p>
                     <h1 className="page-title">Review Management</h1>
-                    <p className="page-subtitle">Assign reviewers and inspect bids and anti-bids.</p>
+                    <p className="page-subtitle">Assign reviewers, inspect bids and anti-bids, and view best paper votes.</p>
                 </div>
             </section>
             <div>
-                <label>Review Type: </label>
-                <select
+                <label>
+                Review Type: </label>
+                <select style={{ maxWidth: '150px', width: '100%' }}
                     value={reviewType}
                     onChange={(e) => handleReviewTypeChange(e.target.value)}
                 >
@@ -150,12 +151,13 @@ function ReviewManagement() {
                         <h2 className="panel-title">{paper.title || "Untitled Paper"}</h2>
                         <p className="table-meta">Paper #{paper.paper_id}</p>
                     </div>
+                    <div style={{marginLeft:'10px'}}>
                     <p className="page-subtitle">{paper.description}</p>
                     <p className="table-meta">Author: {paper.author}</p>
-
-                    <div className="form-grid">
+                    </div>
+                    <div className="form-grid" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                         <label className="field">
-                            <span>Assign Reviewer</span>
+                            <h3 style={{marginLeft:'10px'}}>Assign Reviewer</h3>
                             <select
                                 className="role-select"
                                 value={selectionByPaper[paper.paper_id] || ""}
@@ -174,16 +176,14 @@ function ReviewManagement() {
                                 ))}
                             </select>
                         </label>
-                        <div className="form-actions">
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                onClick={() => handleAssign(paper.paper_id)}
-                                disabled={busyKey.startsWith(`assign-${paper.paper_id}-`)}
-                            >
-                                Assign Reviewer
-                            </button>
-                        </div>
+                        <button style={{height:'45px'}}
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => handleAssign(paper.paper_id)}
+                            disabled={busyKey.startsWith(`assign-${paper.paper_id}-`)}
+                        >
+                            Assign Reviewer
+                        </button>
                     </div>
 
                     <div className="table-wrap">
@@ -256,6 +256,34 @@ function ReviewManagement() {
                                         </td>
                                         <td>{bid.is_locked ? "Locked (historical)" : "Interested"}</td>
                                         <td>{new Date(bid.created_at).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="table-wrap">
+                        <table className="paper-table">
+                            <thead>
+                                <tr>
+                                    <th>Best Paper Votes</th>
+                                    <th>Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paper.best_paper_votes.length === 0 && (
+                                    <tr>
+                                        <td className="empty-state" colSpan="2">
+                                            No best paper votes yet.
+                                        </td>
+                                    </tr>
+                                )}
+                                {paper.best_paper_votes.map((vote) => (
+                                    <tr key={`${paper.paper_id}-best-vote-${vote.reviewer_id}`}>
+                                        <td>
+                                            {vote.reviewer_name} ({vote.reviewer_email})
+                                        </td>
+                                        <td>{new Date(vote.created_at).toLocaleString()}</td>
                                     </tr>
                                 ))}
                             </tbody>

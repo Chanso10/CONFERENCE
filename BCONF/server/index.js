@@ -190,6 +190,27 @@ const ensureConferenceSchema = async () => {
         CREATE INDEX IF NOT EXISTS paper_assignment_feedback_reviewer_idx
         ON paper_assignment_feedback (reviewer_id, updated_at DESC)
     `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS best_paper_votes (
+            vote_id BIGSERIAL PRIMARY KEY,
+            paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+            reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (paper_id, reviewer_id)
+        )
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS best_paper_votes_paper_idx
+        ON best_paper_votes (paper_id)
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS best_paper_votes_reviewer_idx
+        ON best_paper_votes (reviewer_id)
+    `);
 };
 
 app.post("/papers", protect, upload.single("pdf"), async (req, res) => {
@@ -382,6 +403,14 @@ app.get("/papers/:id", protect, async (req, res) => {
                 [paperId, req.user.id]
             );
 
+            const bestPaperVote = await pool.query(
+                `
+                SELECT vote_id FROM best_paper_votes
+                WHERE paper_id = $1 AND reviewer_id = $2
+                `,
+                [paperId, req.user.id]
+            );
+
             const feedbackRow = feedback.rows[0] || { anti_bid: false, reason: null };
 
             // determine whether to include author name based on review type
@@ -399,6 +428,7 @@ app.get("/papers/:id", protect, async (req, res) => {
                 is_authored_by_me: false,
                 anti_bid: feedbackRow.anti_bid,
                 anti_bid_reason: feedbackRow.reason,
+                best_paper_vote: bestPaperVote.rows.length > 0,
             };  
 
             if (showAuthorName) {
@@ -707,12 +737,27 @@ app.get("/management/papers", protect, async (req, res) => {
             `
         );
 
+        const bestPaperVotes = await pool.query(
+            `
+            SELECT
+                bpv.paper_id,
+                bpv.reviewer_id,
+                u.name AS reviewer_name,
+                u.email AS reviewer_email,
+                bpv.created_at
+            FROM best_paper_votes bpv
+            JOIN users u ON u.id = bpv.reviewer_id
+            ORDER BY bpv.created_at DESC
+            `
+        );
+
         const paperMap = new Map();
         for (const paper of papers.rows) {
             paperMap.set(paper.paper_id, {
                 ...paper,
                 bids: [],
                 assignments: [],
+                best_paper_votes: [],
             });
         }
 
@@ -738,6 +783,19 @@ app.get("/management/papers", protect, async (req, res) => {
                 continue;
             }
             target.assignments.push(assignment);
+        }
+
+        for (const vote of bestPaperVotes.rows) {
+            const target = paperMap.get(vote.paper_id);
+            if (!target) {
+                continue;
+            }
+            target.best_paper_votes.push({
+                reviewer_id: vote.reviewer_id,
+                reviewer_name: vote.reviewer_name,
+                reviewer_email: vote.reviewer_email,
+                created_at: vote.created_at,
+            });
         }
 
         res.json(Array.from(paperMap.values()));
@@ -1130,6 +1188,65 @@ app.post("/papers/:id/reviews", protect, async (req, res) => {
         }
 
         res.status(201).json(row);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Best Paper Voting endpoints
+app.post("/papers/:id/best-paper-vote", protect, async (req, res) => {
+    try {
+        const paperId = parsePositiveInt(req.params.id);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        const paper = await fetchPaperById(paperId);
+        if (!paper) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+        // Insert or update the best paper vote
+        const vote = await pool.query(
+            `
+            INSERT INTO best_paper_votes (paper_id, reviewer_id)
+            VALUES ($1, $2)
+            ON CONFLICT (paper_id, reviewer_id) DO UPDATE
+            SET updated_at = CURRENT_TIMESTAMP
+            RETURNING *
+            `,
+            [paperId, req.user.id]
+        );
+
+        res.status(201).json({ success: true, vote: vote.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.delete("/papers/:id/best-paper-vote", protect, async (req, res) => {
+    try {
+        const paperId = parsePositiveInt(req.params.id);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+
+        const paper = await fetchPaperById(paperId);
+        if (!paper) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+
+        // Delete the best paper vote
+        await pool.query(
+            "DELETE FROM best_paper_votes WHERE paper_id = $1 AND reviewer_id = $2",
+            [paperId, req.user.id]
+        );
+
+        res.json({ success: true });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });

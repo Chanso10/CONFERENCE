@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+function capitalizeFirstLetter(string) {
+  if (!string) return '';
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
 function UserManagement() {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
@@ -64,7 +68,7 @@ function UserManagement() {
                                 <tr key={u.id}>
                                     <td>{u.name}</td>
                                     <td>{u.email}</td>
-                                    <td>{u.role}</td>
+                                    <td>{capitalizeFirstLetter(u.role)}</td>
                                     <td>
                                         <select
                                             className="role-select"

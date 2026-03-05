@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS best_paper_votes;
 DROP TABLE IF EXISTS paper_assignment_feedback;
 DROP TABLE IF EXISTS paper_assignments;
 DROP TABLE IF EXISTS paper_bids;
@@ -107,4 +108,19 @@ CREATE TABLE conference_settings (
     CHECK (review_type IN ('single_blind', 'double_blind', 'open'))
     NOT NULL DEFAULT 'double_blind'
 );
+
+CREATE TABLE best_paper_votes (
+  vote_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+  reviewer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (paper_id, reviewer_id)
+);
+
+CREATE INDEX best_paper_votes_paper_idx
+  ON best_paper_votes (paper_id);
+
+CREATE INDEX best_paper_votes_reviewer_idx
+  ON best_paper_votes (reviewer_id);
 

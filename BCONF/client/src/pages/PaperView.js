@@ -29,6 +29,9 @@ function PaperView({ user }) {
     const [antiBidReason, setAntiBidReason] = useState("");
     const [antiBidError, setAntiBidError] = useState("");
     const [submittingAntiBid, setSubmittingAntiBid] = useState(false);
+    const [bestPaperVote, setBestPaperVote] = useState(false);
+    const [submittingBestPaperVote, setSubmittingBestPaperVote] = useState(false);
+    const [bestPaperVoteError, setBestPaperVoteError] = useState("");
     const [reviewType, setReviewType] = useState("double_blind");
     const isChair = user.role === "admin" || user.role === "deputy";
 
@@ -87,6 +90,7 @@ function PaperView({ user }) {
                 if (user.role === "reviewer") {
                     setAntiBid(Boolean(res.data.anti_bid));
                     setAntiBidReason(res.data.anti_bid_reason || "");
+                    setBestPaperVote(Boolean(res.data.best_paper_vote));
                 }
                 setError("");
                 const ownsPaper =
@@ -163,12 +167,33 @@ function PaperView({ user }) {
         }
     };
 
+    const submitBestPaperVote = async (shouldVote) => {
+        setSubmittingBestPaperVote(true);
+        try {
+            if (shouldVote) {
+                await axios.post(`${API_BASE}/papers/${id}/best-paper-vote`);
+                setBestPaperVote(true);
+            } else {
+                await axios.delete(`${API_BASE}/papers/${id}/best-paper-vote`);
+                setBestPaperVote(false);
+            }
+            setBestPaperVoteError("");
+        } catch (err) {
+            setBestPaperVoteError(err.response?.data?.message || "Failed to save best paper vote");
+            // Revert the UI state if the request failed
+            setBestPaperVote(!shouldVote);
+        } finally {
+            setSubmittingBestPaperVote(false);
+        }
+    };
+
     const loadPapersafe = async () => {
         try {
             const res = await axios.get(`${API_BASE}/papers/${id}`);
             setPaper(res.data);
             setAntiBid(Boolean(res.data.anti_bid));
             setAntiBidReason(res.data.anti_bid_reason || "");
+            setBestPaperVote(Boolean(res.data.best_paper_vote));
         } catch (err) {
             // no-op; page-level error handling already covers hard failures
         }
@@ -263,6 +288,20 @@ function PaperView({ user }) {
                                 </button>
                                 {antiBidError && <div className="error">{antiBidError}</div>}
                             </form>
+                            <div className="rating-form">
+                                <label className="field">
+                                    <span>
+                                        <input
+                                            type="checkbox"
+                                            checked={bestPaperVote}
+                                            onChange={(e) => submitBestPaperVote(e.target.checked)}
+                                            disabled={submittingBestPaperVote}
+                                        />{" "}
+                                        Vote for best paper
+                                    </span>
+                                </label>
+                                {bestPaperVoteError && <div className="error">{bestPaperVoteError}</div>}
+                            </div>
                         </>
                     )}
                 </aside>
