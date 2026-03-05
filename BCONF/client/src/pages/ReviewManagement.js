@@ -10,6 +10,9 @@ function ReviewManagement() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busyKey, setBusyKey] = useState("");
+    const [reviewType, setReviewType] = useState("double_blind");
+    const [loadingSettings, setLoadingSettings] = useState(false);
+
 
     const loadData = useCallback(async () => {
         try {
@@ -27,6 +30,15 @@ function ReviewManagement() {
         }
     }, []);
 
+    const loadSettings = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/management/settings/review-type`);
+            setReviewType(res.data.review_type);
+        } catch (err) {
+            setError("Failed to load review type settings");
+        }
+    }, []);
+
     useEffect(() => {
         const init = async () => {
             setLoading(true);
@@ -35,6 +47,25 @@ function ReviewManagement() {
         };
         init();
     }, [loadData]);
+
+    useEffect(() => {
+        const init = async () => {
+            setLoadingSettings(true);
+            await loadSettings();
+            setLoadingSettings(false);
+        };
+        init();
+    }, [loadSettings]);
+
+    const handleReviewTypeChange = async (newType) => {
+        try { 
+            await axios.put(`${API_BASE}/management/settings/review-type`, { review_type: newType });
+            setReviewType(newType);
+            setError("");
+        } catch (err) {
+            setError("Failed to update review type settings");
+        }
+    };
 
     const handleAssign = async (paperId) => {
         const reviewerId = Number.parseInt(selectionByPaper[paperId], 10);
@@ -98,6 +129,18 @@ function ReviewManagement() {
                     <p className="page-subtitle">Assign reviewers and inspect bids and anti-bids.</p>
                 </div>
             </section>
+            <div>
+                <label>Review Type: </label>
+                <select
+                    value={reviewType}
+                    onChange={(e) => handleReviewTypeChange(e.target.value)}
+                >
+                <option value="single_blind">Single Blind</option>
+                <option value="double_blind">Double Blind</option>
+                <option value="open">Open</option>
+            </select>
+            </div>
+
 
             {error && <div className="error">{error}</div>}
 

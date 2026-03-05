@@ -29,6 +29,7 @@ function PaperView({ user }) {
     const [antiBidReason, setAntiBidReason] = useState("");
     const [antiBidError, setAntiBidError] = useState("");
     const [submittingAntiBid, setSubmittingAntiBid] = useState(false);
+    const [reviewType, setReviewType] = useState("double_blind");
     const isChair = user.role === "admin" || user.role === "deputy";
 
     const loadRatings = useCallback(async () => {
@@ -52,7 +53,33 @@ function PaperView({ user }) {
         }
     }, [id]);
 
+    const loadReviewType = async () => {
+        try {
+            const res = await axios.get("http://localhost:5000/management/settings/review-type");
+            console.log("Loaded review type:", res.data.review_type);
+            setReviewType(res.data.review_type);
+        } catch (err) {
+            console.error("Failed to load review type:", err);
+            setReviewType("double_blind");
+        }
+    };
+
+    const showAuthor = (paper) => {
+        if (user.role === "admin" || user.role === "deputy") {
+            return true;
+        }
+        if(user.role === "reviewer") {
+            if (reviewType === "single_blind" || reviewType === "open") {
+                return true;
+            }
+        }
+
+        return paper.author_id === user.id;
+    };
+
+
     useEffect(() => {
+        loadReviewType();
         const loadPaper = async () => {
             try {
                 const res = await axios.get(`${API_BASE}/papers/${id}`);
@@ -184,7 +211,8 @@ function PaperView({ user }) {
             <section className="paper-view-layout">
                 <aside className="panel">
                     <h2 className="panel-title">{paper.title || "Untitled Paper"}</h2>
-                    {user.role !== "reviewer" && paper.author && <p className="table-meta">Author: {paper.author}</p>}
+                    {showAuthor(paper) && paper.author && <p className="table-meta">Author: {paper.author}</p>}
+                    
                     <p className="paper-description">{paper.description}</p>
                     {user && user.role === "reviewer" && paper.is_assigned && (
                         <>

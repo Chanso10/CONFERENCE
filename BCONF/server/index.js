@@ -244,11 +244,27 @@ app.get("/papers", protect, async (req, res) => {
         }
 
         if (req.user.role === "reviewer") {
+            const settings = await getConferenceSettings();
+            const reviewType = settings.review_type || "double_blind";
+            const shouldShowAuthor = reviewType === "single_blind" || reviewType === "open";
+
             const reviewerPaperList = await pool.query(
                 `
                 SELECT
                     p.paper_id,
                     p.title,
+                    CASE 
+                        WHEN $2 AND (
+                                (p.author_id = $1) OR
+                                EXISTS (
+                                    SELECT 1
+                                    FROM paper_assignments pa
+                                    WHERE pa.paper_id = p.paper_id
+                                      AND pa.reviewer_id = $1
+                                )
+                             ) THEN p.author
+                        ELSE NULL
+                    END AS author,
                     p.description,
                     p.created_at,
                     (p.author_id = $1) AS is_authored_by_me,
@@ -288,7 +304,7 @@ app.get("/papers", protect, async (req, res) => {
                 FROM papers p
                 ORDER BY p.created_at DESC
                 `,
-                [req.user.id]
+                [req.user.id, shouldShowAuthor]
             );
 
             const response = reviewerPaperList.rows.map((paper) => ({
@@ -367,7 +383,13 @@ app.get("/papers/:id", protect, async (req, res) => {
             );
 
             const feedbackRow = feedback.rows[0] || { anti_bid: false, reason: null };
-            return res.json({
+
+            // determine whether to include author name based on review type
+            const settings = await getConferenceSettings();
+            const reviewType = settings.review_type || "double_blind";
+            const showAuthorName = reviewType === "single_blind" || reviewType === "open";
+
+            const result = {
                 paper_id: paper.paper_id,
                 title: paper.title,
                 description: paper.description,
@@ -377,7 +399,14 @@ app.get("/papers/:id", protect, async (req, res) => {
                 is_authored_by_me: false,
                 anti_bid: feedbackRow.anti_bid,
                 anti_bid_reason: feedbackRow.reason,
-            });
+            };  
+
+            if (showAuthorName) {
+                result.author = paper.author;
+                result.author_id = paper.author_id;
+            }
+
+            return res.json(result);
         }
 
         return res.status(403).json({ message: "Access denied" });
@@ -865,18 +894,30 @@ app.get("/papers/:id/ratings", protect, async (req, res) => {
             return res.json(ratings.rows);
         }
 
-        const aliasMap = await getReviewerAliasMap(
-            paperId,
-            ratings.rows.map((row) => row.editor_id)
-        );
+        const settings = await getConferenceSettings();
+        const reviewType = settings.review_type || "double_blind";
 
-        const anonymized = ratings.rows.map((row) => ({
-            id: row.id,
-            paper_id: row.paper_id,
-            rating: row.rating,
-            review: row.review,
-            reviewer_label: aliasMap.get(row.editor_id) || "Reviewer",
-        }));
+        const reviewerIds = ratings.rows.map((row) => row.editor_id);
+        const aliasMap = await getReviewerAliasMap(paperId, reviewerIds);
+
+        let anonymized;
+        if (reviewType === "open") {
+            anonymized = ratings.rows.map((row) => ({
+                id: row.id,
+                paper_id: row.paper_id,
+                rating: row.rating,
+                review: row.review,
+                reviewer_name: row.reviewer_name,
+            }));
+        } else {
+            anonymized = ratings.rows.map((row) => ({
+                id: row.id,
+                paper_id: row.paper_id,
+                rating: row.rating,
+                review: row.review,
+                reviewer_label: aliasMap.get(row.editor_id) || "Reviewer",
+            }));
+        }
 
         res.json(anonymized);
     } catch (err) {
@@ -978,28 +1019,10 @@ app.get("/papers/:id/reviews", protect, async (req, res) => {
             [paperId]
         );
 
-        if (isChair(req.user)) {
-            return res.json(reviews.rows);
-        }
+        const settings = await getConferenceSettings();
+        const reviewType = settings.review_type || "double_blind";
 
-        const reviewerIds = reviews.rows
-            .filter((row) => row.author_role === "reviewer")
-            .map((row) => row.author_id);
-        const aliasMap = await getReviewerAliasMap(paperId, reviewerIds);
-
-        const anonymized = reviews.rows.map((row) => {
-            let displayName = row.author_name;
-            if (row.author_role === "reviewer") {
-                displayName = aliasMap.get(row.author_id) || "Reviewer";
-            } else if (row.author_role === "admin" || row.author_role === "deputy") {
-                displayName = "Chair";
-            }
-
-            return {
-                ...row,
-                author_name: displayName,
-            };
-        });
+        const anonymized = await applyReviewAnonymization(reviews.rows, reviewType, paperId, isChair(req.user));
 
         res.json(anonymized);
     } catch (err) {
@@ -1097,11 +1120,13 @@ app.post("/papers/:id/reviews", protect, async (req, res) => {
         }
 
         const row = createdReview.rows[0];
-        if (row.author_role === "reviewer") {
-            const aliasMap = await getReviewerAliasMap(paperId, [row.author_id]);
-            row.author_name = aliasMap.get(row.author_id) || "Reviewer";
-        } else if (row.author_role === "admin" || row.author_role === "deputy") {
-            row.author_name = "Chair";
+        const settings = await getConferenceSettings();
+        const reviewType = settings.review_type || "double_blind";
+
+        if (!isChair(req.user)) {
+            const reviews = [row];
+            const anonymized = await applyReviewAnonymization(reviews, reviewType, paperId, false);
+            return res.status(201).json(anonymized[0]);
         }
 
         res.status(201).json(row);
@@ -1110,6 +1135,109 @@ app.post("/papers/:id/reviews", protect, async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
+//Review types section
+
+const applyReviewAnonymization = async (review, reviewType, paperId, isChairUser) => {
+    if (reviewType === "open") {
+        return review;
+    }
+
+    if (isChairUser) {
+        return review;
+    }
+
+    if (reviewType === "single_blind") {
+        const reviewerIds = review
+            .filter((row) => row.author_role === "reviewer")
+            .map((row) => row.author_id);
+        const aliasMap = await getReviewerAliasMap(paperId, reviewerIds);
+
+        return review.map((row) => {
+            let displayName = row.author_name;
+            if (row.author_role === "reviewer") {
+                displayName = aliasMap.get(row.author_id) || "Reviewer";
+            } else if (row.author_role === "admin" || row.author_role === "deputy") {
+                displayName = "Chair";
+            }
+            return { ...row, author_name: displayName };
+        });
+    }
+    
+    if (reviewType === "double_blind") {
+        const allReviewerIds = review.map((row) => row.author_id);
+        const aliasMap = await getReviewerAliasMap(paperId, allReviewerIds);
+
+        const paperAuthorId = (await fetchPaperById(paperId)).author_id;
+        if (!aliasMap.has(paperAuthorId)) {
+            aliasMap.set(paperAuthorId, "Author");
+        }
+
+        return review.map((row) => {
+            let displayName = row.author_name;
+            if (row.author_role === "reviewer") {
+                displayName = aliasMap.get(row.author_id) || "Reviewer";
+            } else if (row.author_role === "author") {
+                displayName = aliasMap.get(row.author_id) || "Author";
+            } else if (row.author_role === "admin" || row.author_role === "deputy") {
+                displayName = "Chair";
+            }
+
+            return { ...row, author_name: displayName };
+        });
+    }
+    return review;
+};
+    
+const getConferenceSettings = async () => {
+    const res = await pool.query("SELECT review_type FROM conference_settings LIMIT 1");
+    return res.rows[0] || { review_type: "double_blind" };
+};
+
+app.get("/management/settings/review-type", protect, async (req, res) => {
+    try {
+        const settings = await getConferenceSettings();
+        res.json(settings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/management/settings/review-type", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const { review_type } = req.body;
+        const validReviewTypes = ["single_blind", "double_blind", "open"];
+
+        if (!review_type || !validReviewTypes.includes(review_type)) {
+            return res.status(400).json({ message: "Invalid review type" });
+        }
+
+        const updated = await pool.query(
+            "UPDATE conference_settings SET review_type = $1 RETURNING id, review_type",
+            [review_type]
+        );
+
+        if (updated.rows.length === 0) {
+            const created = await pool.query(
+                "INSERT INTO conference_settings (review_type) VALUES ($1) RETURNING id, review_type",
+                [review_type]
+            );
+            return res.json(created.rows[0]);
+        }
+
+        res.json(updated.rows[0]);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 
 const startServer = async () => {
     try {

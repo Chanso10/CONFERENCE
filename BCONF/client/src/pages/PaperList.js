@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {use, useEffect, useState} from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
@@ -10,6 +10,7 @@ function PaperList({ user }){
     const [pdf, setPdf]=useState(null);
     const [error, setError]=useState("");
     const [busyBidPaperId, setBusyBidPaperId] = useState(null);
+    const [reviewType, setReviewType] = useState("double_blind");
 
     const  loadPapers= async()=>{
         try {
@@ -22,9 +23,35 @@ function PaperList({ user }){
         }
     };
 
-    useEffect(()=>{
+    const loadReviewType = async () => {
+        try {
+            const res = await axios.get("http://localhost:5000/management/settings/review-type");
+            console.log("Loaded review type:", res.data.review_type);
+            setReviewType(res.data.review_type);
+        } catch (err) {
+            console.error("Failed to load review type:", err);
+            setReviewType("double_blind");
+        }
+    };
+
+    useEffect(() => {
         loadPapers();
-    },[]);
+        loadReviewType();
+    }, []);
+
+    const showAuthor = (paper) => {
+        if (user.role === "admin" || user.role === "deputy") {
+            return true;
+        }
+        if(user.role === "reviewer") {
+            if (reviewType === "single_blind" || reviewType === "open") {
+                return true;
+            }
+        }
+
+        return paper.author_id === user.id;
+    };
+
 
     const submitPaper= async e=>{
         e.preventDefault();
@@ -146,7 +173,7 @@ function PaperList({ user }){
                         <thead>
                             <tr>
                                 <th>Title</th>
-                                {!isReviewer && <th>Author</th>}
+                                {(reviewType !== "double_blind" || !isReviewer) && <th>Author</th>}
                                 <th>Description</th>
                                 {isReviewer && <th>Status</th>}
                                 <th>Actions</th>
@@ -155,13 +182,13 @@ function PaperList({ user }){
                         <tbody>
                             {papers.length === 0 && (
                                 <tr>
-                                    <td className="empty-state" colSpan={isReviewer ? 4 : 4}>No papers submitted yet.</td>
+                                    <td className="empty-state" colSpan={isReviewer ? (reviewType === "double_blind" ? 4 : 5) : 4}>No papers submitted yet.</td>
                                 </tr>
                             )}
                             {papers.map((p)=>(
                                 <tr key={p.paper_id}>
                                     <td className="author-cell">{p.title || "Untitled Paper"}</td>
-                                    {!isReviewer && <td className="author-cell">{p.author}</td>}
+                                    {showAuthor(p) && <td className="author-cell">{p.author}</td>}
                                     <td>{p.description}</td>
                                     {isReviewer && <td>{reviewerStatus(p)}</td>}
                                     <td>

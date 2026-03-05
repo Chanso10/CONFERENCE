@@ -100,3 +100,12 @@ CREATE INDEX paper_assignment_feedback_paper_idx
 
 CREATE INDEX paper_assignment_feedback_reviewer_idx
   ON paper_assignment_feedback (reviewer_id, updated_at DESC);
+
+CREATE TABLE conference_settings (
+  id SERIAL PRIMARY KEY);
+
+ALTER TABLE conference_settings
+  ADD COLUMN review_type VARCHAR(20)
+  CHECK (review_type IN ('single_blind', 'double_blind', 'open'))
+  NOT NULL DEFAULT 'double_blind';
+
