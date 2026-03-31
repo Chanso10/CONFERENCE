@@ -217,6 +217,14 @@ function PaperView({ user }) {
 
     const isAuthoredByMe =
         (typeof paper.author_id === "number" && paper.author_id === user.id) || Boolean(paper.is_authored_by_me);
+    const userHasSubmittedReview = reviews.some(review => review.author_id === user.id);
+    const userHasSubmittedRating = ratings.some(rating => rating.editor_id === user.id);
+    //If stuff starts breaking again, use these to check whats actually happening
+    //console.log("Ratings:", ratings);
+    //console.log("Reviews:", reviews);
+    //console.log("User ID:", user.id);
+    //console.log("userHasSubmittedRating:", userHasSubmittedRating);
+    //console.log("userHasSubmittedReview:", userHasSubmittedReview);
     const canSeeFeedback = isChair || !isAuthoredByMe;
     const canPostDiscussion =
         canSeeFeedback && user.role !== "author" && (user.role !== "reviewer" || paper.is_assigned);
@@ -311,7 +319,7 @@ function PaperView({ user }) {
                 </article>
             </section>
 
-            {canSeeFeedback && ratings.length > 0 && (
+            {canSeeFeedback && userHasSubmittedRating && ratings.length > 0 && (
                 <section className="panel">
                     <div className="table-head">
                         <h2 className="panel-title">Ratings</h2>
@@ -364,7 +372,7 @@ function PaperView({ user }) {
                                 No reviews yet.
                             </div>
                         )}
-                        {reviews.map((review) => (
+                        {userHasSubmittedReview && reviews.map((review) => (
                             <article key={review.review_id} className="review">
                                 <div className="review-header">
                                     <div className="review-author-group">

@@ -973,6 +973,7 @@ app.get("/papers/:id/ratings", protect, async (req, res) => {
                 paper_id: row.paper_id,
                 rating: row.rating,
                 review: row.review,
+                editor_id: row.editor_id,
                 reviewer_label: aliasMap.get(row.editor_id) || "Reviewer",
             }));
         }
