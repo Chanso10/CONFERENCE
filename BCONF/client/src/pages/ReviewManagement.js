@@ -13,6 +13,11 @@ function ReviewManagement() {
     const [reviewType, setReviewType] = useState("double_blind");
     const [loadingSettings, setLoadingSettings] = useState(false);
 
+    const reviewTypeLabels = {
+        single_blind: "Single Blind",
+        double_blind: "Double Blind",
+        open: "Open",
+    };
 
     const loadData = useCallback(async () => {
         try {
@@ -58,7 +63,21 @@ function ReviewManagement() {
     }, [loadSettings]);
 
     const handleReviewTypeChange = async (newType) => {
-        try { 
+        if (newType === reviewType) {
+            return;
+        }
+
+        const currentLabel = reviewTypeLabels[reviewType] || reviewType;
+        const nextLabel = reviewTypeLabels[newType] || newType;
+        const confirmed = window.confirm(
+            `Change review type from ${currentLabel} to ${nextLabel}?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
             await axios.put(`${API_BASE}/management/settings/review-type`, { review_type: newType });
             setReviewType(newType);
             setError("");
