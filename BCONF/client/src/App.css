@@ -161,6 +161,7 @@ body {
 }
 
 input[type="text"],
+input[type="search"],
 input[type="email"],
 input[type="password"],
 input[type="file"],
@@ -176,6 +177,7 @@ select {
 }
 
 input[type="text"]:focus,
+input[type="search"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="file"]:focus,
@@ -273,7 +275,7 @@ textarea {
 .table-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 1rem;
   padding: 1rem 1.2rem 0.85rem;
   border-bottom: 1px solid var(--line);
@@ -283,6 +285,56 @@ textarea {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.search-control {
+  width: min(360px, 100%);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.search-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.search-input {
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-clear {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  background: #f7fafc;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 200ms ease;
+}
+
+.search-clear:hover {
+  color: var(--text);
+  background: #edf3f7;
+}
+
+.search-helper {
+  margin: 0;
+  min-height: 1.2rem;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .table-wrap {
@@ -478,7 +530,17 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .table-head,
+  .search-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .btn {
+    width: 100%;
+  }
+
+  .search-clear {
     width: 100%;
   }
 

@@ -1,6 +1,10 @@
-import React, {use, useEffect, useState} from "react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import SearchInput from "../components/SearchInput";
+import PaperSearchIndex from "../search/PaperSearchIndex";
+
+const API_BASE = "http://localhost:5000";
 
 function PaperList({ user }){
     const [papers, setPapers]=useState([]);
@@ -11,10 +15,12 @@ function PaperList({ user }){
     const [error, setError]=useState("");
     const [busyBidPaperId, setBusyBidPaperId] = useState(null);
     const [reviewType, setReviewType] = useState("double_blind");
+    const [searchQuery, setSearchQuery] = useState("");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
     const  loadPapers= async()=>{
         try {
-            const res = await axios.get("http://localhost:5000/papers");
+            const res = await axios.get(`${API_BASE}/papers`);
             setPapers(res.data);
             setError("");
         } catch (err) {
@@ -25,8 +31,7 @@ function PaperList({ user }){
 
     const loadReviewType = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/management/settings/review-type");
-            console.log("Loaded review type:", res.data.review_type);
+            const res = await axios.get(`${API_BASE}/management/settings/review-type`);
             setReviewType(res.data.review_type);
         } catch (err) {
             console.error("Failed to load review type:", err);
@@ -39,20 +44,6 @@ function PaperList({ user }){
         loadReviewType();
     }, []);
 
-    const showAuthor = (paper) => {
-        if (user.role === "admin" || user.role === "deputy") {
-            return true;
-        }
-        if(user.role === "reviewer") {
-            if (reviewType === "single_blind" || reviewType === "open") {
-                return true;
-            }
-        }
-
-        return paper.author_id === user.id;
-    };
-
-
     const submitPaper= async e=>{
         e.preventDefault();
         const formData=new FormData();
@@ -61,7 +52,7 @@ function PaperList({ user }){
         formData.append("pdf", pdf);
 
         try {
-            await axios.post("http://localhost:5000/papers", formData);
+            await axios.post(`${API_BASE}/papers`, formData);
             await loadPapers();
             setShowForm(false);
             setTitle("");
@@ -76,7 +67,7 @@ function PaperList({ user }){
     const addBid = async (paperId) => {
         setBusyBidPaperId(paperId);
         try {
-            await axios.post(`http://localhost:5000/papers/${paperId}/bid`);
+            await axios.post(`${API_BASE}/papers/${paperId}/bid`);
             await loadPapers();
             setError("");
         } catch (err) {
@@ -89,7 +80,7 @@ function PaperList({ user }){
     const removeBid = async (paperId) => {
         setBusyBidPaperId(paperId);
         try {
-            await axios.delete(`http://localhost:5000/papers/${paperId}/bid`);
+            await axios.delete(`${API_BASE}/papers/${paperId}/bid`);
             await loadPapers();
             setError("");
         } catch (err) {
@@ -100,6 +91,7 @@ function PaperList({ user }){
     };
 
     const isReviewer = user.role === "reviewer";
+    const showAuthorColumn = !isReviewer || reviewType !== "double_blind";
     const canViewPaper = (paper) => {
         if (user.role === "reviewer") {
             return Boolean(paper.is_assigned || paper.is_authored_by_me);
@@ -108,23 +100,32 @@ function PaperList({ user }){
     };
 
     const reviewerStatus = (paper) => {
-        if (paper.is_assigned) {
-            if (paper.anti_bid) {
-                return "Assigned (Anti-bid submitted)";
-            }
-            return "Assigned";
-        }
-        if (paper.bid_locked) {
-            return "Bid locked";
-        }
-        if (paper.has_bid) {
-            return "Interested";
-        }
-        if (paper.is_authored_by_me) {
-            return "Authored by you";
-        }
-        return "Unassigned";
+        return PaperSearchIndex.getReviewerStatusLabel(paper) || "Unassigned";
     };
+
+    const paperSearchIndex = useMemo(() => new PaperSearchIndex(papers), [papers]);
+    const visiblePapers = useMemo(
+        () => paperSearchIndex.search(deferredSearchQuery),
+        [deferredSearchQuery, paperSearchIndex]
+    );
+    const activeSearchQuery = deferredSearchQuery.trim();
+    const hasSearchQuery = activeSearchQuery.length > 0;
+    const isSearchUpdating = searchQuery !== deferredSearchQuery;
+    const emptyStateColSpan = isReviewer ? (showAuthorColumn ? 5 : 4) : 4;
+    const tableMeta = hasSearchQuery
+        ? `${visiblePapers.length} of ${papers.length} matching`
+        : `${papers.length} total`;
+    const searchHelperText = isSearchUpdating
+        ? "Updating results..."
+        : hasSearchQuery
+          ? `Showing ${visiblePapers.length} matching ${visiblePapers.length === 1 ? "paper" : "papers"}.`
+          : isReviewer
+            ? "Search by title, visible author, description, or reviewer status."
+            : "Search by title, visible author, or description.";
+    const emptyStateMessage =
+        papers.length === 0
+            ? "No papers submitted yet."
+            : `No papers match "${activeSearchQuery}".`;
 
     return(
         <main className="app-shell">
@@ -165,30 +166,40 @@ function PaperList({ user }){
 
             <section className="panel table-panel">
                 <div className="table-head">
-                    <h2 className="panel-title">Submitted Papers</h2>
-                    <p className="table-meta">{papers.length} total</p>
+                    <div>
+                        <h2 className="panel-title">Submitted Papers</h2>
+                        <p className="table-meta">{tableMeta}</p>
+                    </div>
+                    <SearchInput
+                        id="paper-search"
+                        label="Search papers"
+                        placeholder="Search papers"
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        helperText={searchHelperText}
+                    />
                 </div>
                 <div className="table-wrap">
                     <table className="paper-table">
                         <thead>
                             <tr>
                                 <th>Title</th>
-                                {(reviewType !== "double_blind" || !isReviewer) && <th>Author</th>}
+                                {showAuthorColumn && <th>Author</th>}
                                 <th>Description</th>
                                 {isReviewer && <th>Status</th>}
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {papers.length === 0 && (
+                            {visiblePapers.length === 0 && (
                                 <tr>
-                                    <td className="empty-state" colSpan={isReviewer ? (reviewType === "double_blind" ? 4 : 5) : 4}>No papers submitted yet.</td>
+                                    <td className="empty-state" colSpan={emptyStateColSpan}>{emptyStateMessage}</td>
                                 </tr>
                             )}
-                            {papers.map((p)=>(
+                            {visiblePapers.map((p)=>(
                                 <tr key={p.paper_id}>
                                     <td className="author-cell">{p.title || "Untitled Paper"}</td>
-                                    {showAuthor(p) && <td className="author-cell">{p.author}</td>}
+                                    {showAuthorColumn && <td className="author-cell">{p.author}</td>}
                                     <td>{p.description}</td>
                                     {isReviewer && <td>{reviewerStatus(p)}</td>}
                                     <td>
