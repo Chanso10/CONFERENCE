@@ -97,6 +97,11 @@ const ensureConferenceSchema = async () => {
     `);
 
     await pool.query(`
+        ALTER TABLE papers
+        ADD COLUMN IF NOT EXISTS approval VARCHAR(16) NOT NULL DEFAULT 'pending'
+    `);
+
+    await pool.query(`
         CREATE TABLE IF NOT EXISTS paper_reviews (
             review_id BIGSERIAL PRIMARY KEY,
             paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
@@ -248,16 +253,19 @@ app.get("/papers", protect, async (req, res) => {
                     p.paper_id,
                     p.title,
                     p.author,
+                    u.email AS author_email,
                     p.description,
                     p.pdf_path,
                     p.created_at,
                     p.author_id,
+                    p.approval,
                     COUNT(DISTINCT pa.reviewer_id)::INT AS assignment_count,
                     COUNT(DISTINCT pb.reviewer_id)::INT AS bid_count
                 FROM papers p
+                LEFT JOIN users u ON u.id = p.author_id
                 LEFT JOIN paper_assignments pa ON pa.paper_id = p.paper_id
                 LEFT JOIN paper_bids pb ON pb.paper_id = p.paper_id
-                GROUP BY p.paper_id
+                GROUP BY p.paper_id, u.email
                 ORDER BY p.created_at DESC
                 `
             );
@@ -274,6 +282,7 @@ app.get("/papers", protect, async (req, res) => {
                 SELECT
                     p.paper_id,
                     p.title,
+                    p.approval,
                     CASE 
                         WHEN $2 AND (
                                 (p.author_id = $1) OR
@@ -338,7 +347,7 @@ app.get("/papers", protect, async (req, res) => {
 
         const ownPapers = await pool.query(
             `
-            SELECT paper_id, title, author, description, pdf_path, created_at, author_id
+            SELECT paper_id, title, author, description, pdf_path, created_at, author_id, approval
             FROM papers
             WHERE author_id = $1
             ORDER BY created_at DESC
@@ -382,6 +391,7 @@ app.get("/papers/:id", protect, async (req, res) => {
                     description: paper.description,
                     pdf_path: paper.pdf_path,
                     created_at: paper.created_at,
+                    approval: paper.approval,
                     is_assigned: false,
                     is_authored_by_me: true,
                     anti_bid: false,
@@ -424,6 +434,7 @@ app.get("/papers/:id", protect, async (req, res) => {
                 description: paper.description,
                 pdf_path: paper.pdf_path,
                 created_at: paper.created_at,
+                approval: paper.approval,
                 is_assigned: true,
                 is_authored_by_me: false,
                 anti_bid: feedbackRow.anti_bid,
@@ -440,6 +451,44 @@ app.get("/papers/:id", protect, async (req, res) => {
         }
 
         return res.status(403).json({ message: "Access denied" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/papers/:id/approval", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Only chairs can update approval status" });
+        }
+
+        const paperId = parsePositiveInt(req.params.id);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        const { approval } = req.body;
+        const validApprovals = ["Pending", "Approved", "Denied"];
+        if (!validApprovals.includes(approval)) {
+            return res.status(400).json({ message: "Invalid approval value" });
+        }
+
+        const updated = await pool.query(
+            `
+            UPDATE papers
+            SET approval = $1
+            WHERE paper_id = $2
+            RETURNING *
+            `,
+            [approval, paperId]
+        );
+
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+        res.json(updated.rows[0]);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });
@@ -694,9 +743,10 @@ app.get("/management/papers", protect, async (req, res) => {
 
         const papers = await pool.query(
             `
-            SELECT paper_id, title, author, description, created_at, author_id
-            FROM papers
-            ORDER BY created_at DESC
+            SELECT p.paper_id, p.title, p.author, u.email AS author_email, p.description, p.created_at, p.author_id, p.approval
+            FROM papers p
+            LEFT JOIN users u ON u.id = p.author_id
+            ORDER BY p.created_at DESC
             `
         );
 

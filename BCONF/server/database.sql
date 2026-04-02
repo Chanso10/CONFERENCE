@@ -23,7 +23,8 @@ CREATE TABLE papers(
   description VARCHAR(255),
   pdf_path VARCHAR(255),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  author_id INTEGER REFERENCES users(id)
+  author_id INTEGER REFERENCES users(id),
+  approval VARCHAR(50) DEFAULT 'Pending'
 );
 
 CREATE TABLE ratings (

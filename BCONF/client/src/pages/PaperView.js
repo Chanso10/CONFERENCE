@@ -33,6 +33,8 @@ function PaperView({ user }) {
     const [submittingBestPaperVote, setSubmittingBestPaperVote] = useState(false);
     const [bestPaperVoteError, setBestPaperVoteError] = useState("");
     const [reviewType, setReviewType] = useState("double_blind");
+    const [updatingApproval, setUpdatingApproval] = useState(false);
+    const [approvalError, setApprovalError] = useState("");
     const isChair = user.role === "admin" || user.role === "deputy";
 
     const loadRatings = useCallback(async () => {
@@ -199,6 +201,27 @@ function PaperView({ user }) {
         }
     };
 
+    const updateApproval = async (newApproval) => {
+
+        const confirmed = window.confirm(
+            `Change approval status to ${newApproval}?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setUpdatingApproval(true);
+        setApprovalError("");
+        try {
+            const res = await axios.put(`${API_BASE}/papers/${id}/approval`, { approval: newApproval });
+            setPaper((prev) => ({ ...prev, approval: res.data.approval }));
+        } catch (err) {
+            setApprovalError(err.response?.data?.message || "Failed to update approval status");
+        } finally {
+            setUpdatingApproval(false);
+        }
+    };
     if (error) {
         return (
             <main className="app-shell">
@@ -247,6 +270,27 @@ function PaperView({ user }) {
                     {showAuthor(paper) && paper.author && <p className="table-meta">Author: {paper.author}</p>}
                     
                     <p className="paper-description">{paper.description}</p>
+                    {isChair && (
+                        <div className="approval-section">
+                            <p className="table-meta">Approval Status: <strong>{paper.approval}</strong></p>
+                            <div className="approval-buttons">
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => updateApproval('Approved')}
+                                    disabled={updatingApproval || paper.approval === 'Approved'}
+                                >
+                                    {updatingApproval ? 'Updating...' : 'Approve'}
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => updateApproval('Denied')}
+                                    disabled={updatingApproval || paper.approval === 'Denied'}
+                                >
+                                    {updatingApproval ? 'Updating...' : 'Deny'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {user && user.role === "reviewer" && paper.is_assigned && (
                         <>
                             <form onSubmit={submitRating} className="rating-form">

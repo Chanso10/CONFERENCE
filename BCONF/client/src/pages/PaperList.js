@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { use, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import SearchInput from "../components/SearchInput";
@@ -17,6 +17,8 @@ function PaperList({ user }){
     const [reviewType, setReviewType] = useState("double_blind");
     const [searchQuery, setSearchQuery] = useState("");
     const deferredSearchQuery = useDeferredValue(searchQuery);
+    const [approvalFilter, setApprovalFilter] = useState("all");
+    const isChair = user.role === "admin" || user.role === "deputy";
 
     const  loadPapers= async()=>{
         try {
@@ -90,6 +92,7 @@ function PaperList({ user }){
         }
     };
 
+    
     const isReviewer = user.role === "reviewer";
     const showAuthorColumn = !isReviewer || reviewType !== "double_blind";
     const canViewPaper = (paper) => {
@@ -103,7 +106,18 @@ function PaperList({ user }){
         return PaperSearchIndex.getReviewerStatusLabel(paper) || "Unassigned";
     };
 
-    const paperSearchIndex = useMemo(() => new PaperSearchIndex(papers), [papers]);
+   
+    const filteredByApproval = useMemo(() => {
+        if (approvalFilter === "all"){
+            return papers;
+        }
+        return papers.filter((paper) => {
+            const status = paper.approval ? paper.approval.toLowerCase() : "pending";
+            return status === approvalFilter;
+        });
+    }, [papers, approvalFilter]);
+
+    const paperSearchIndex = useMemo(() => new PaperSearchIndex(filteredByApproval), [filteredByApproval]);
     const visiblePapers = useMemo(
         () => paperSearchIndex.search(deferredSearchQuery),
         [deferredSearchQuery, paperSearchIndex]
@@ -170,6 +184,23 @@ function PaperList({ user }){
                         <h2 className="panel-title">Submitted Papers</h2>
                         <p className="table-meta">{tableMeta}</p>
                     </div>
+                    
+                    {isChair && (
+                        <div className="field" style={{ marginRight: "1rem" }}>
+                            <label htmlFor="approval-filter">Approval Filter</label>
+                            <select
+                                id="approval-filter"
+                                value={approvalFilter}
+                                onChange={(e) => setApprovalFilter(e.target.value)}
+                            >
+                                <option value="all">All Papers</option>
+                                <option value="approved">Approved</option>
+                                <option value="denied">Denied</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                    )}
+                                
                     <SearchInput
                         id="paper-search"
                         label="Search papers"
@@ -185,6 +216,7 @@ function PaperList({ user }){
                             <tr>
                                 <th>Title</th>
                                 {showAuthorColumn && <th>Author</th>}
+                                {isChair && <th>Email</th>}
                                 <th>Description</th>
                                 {isReviewer && <th>Status</th>}
                                 <th>Actions</th>
@@ -200,6 +232,7 @@ function PaperList({ user }){
                                 <tr key={p.paper_id}>
                                     <td className="author-cell">{p.title || "Untitled Paper"}</td>
                                     {showAuthorColumn && <td className="author-cell">{p.author}</td>}
+                                    {showAuthorColumn && isChair && <td className="email-cell">{p.author_email}</td>}
                                     <td>{p.description}</td>
                                     {isReviewer && <td>{reviewerStatus(p)}</td>}
                                     <td>
