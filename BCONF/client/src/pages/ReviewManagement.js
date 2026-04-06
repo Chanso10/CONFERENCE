@@ -11,7 +11,9 @@ function ReviewManagement() {
     const [error, setError] = useState("");
     const [busyKey, setBusyKey] = useState("");
     const [reviewType, setReviewType] = useState("double_blind");
-    const [loadingSettings, setLoadingSettings] = useState(false);
+    const [directionsText, setDirectionsText] = useState("");
+    const [directionsEditing, setDirectionsEditing] = useState(false);
+    const [directionsSaving, setDirectionsSaving] = useState(false);
 
     const reviewTypeLabels = {
         single_blind: "Single Blind",
@@ -37,10 +39,16 @@ function ReviewManagement() {
 
     const loadSettings = useCallback(async () => {
         try {
-            const res = await axios.get(`${API_BASE}/management/settings/review-type`);
-            setReviewType(res.data.review_type);
+            const [reviewTypeRes, directionsRes] = await Promise.all([
+                axios.get(`${API_BASE}/management/settings/review-type`),
+                axios.get(`${API_BASE}/management/settings/review-directions`),
+            ]);
+            setReviewType(reviewTypeRes.data.review_type);
+            if (directionsRes.data.directions) {
+                setDirectionsText(directionsRes.data.directions);
+            }
         } catch (err) {
-            setError("Failed to load review type settings");
+            setError("Failed to load settings");
         }
     }, []);
 
@@ -55,9 +63,7 @@ function ReviewManagement() {
 
     useEffect(() => {
         const init = async () => {
-            setLoadingSettings(true);
             await loadSettings();
-            setLoadingSettings(false);
         };
         init();
     }, [loadSettings]);
@@ -120,6 +126,43 @@ function ReviewManagement() {
         }
     };
 
+    const handleSaveDirections = async () => {
+        const text = directionsText.trim();
+        if (!text) {
+            setError("Directions cannot be empty");
+            return;
+        }
+
+        setDirectionsSaving(true);
+        try {
+            await axios.put(`${API_BASE}/management/settings/review-directions`, { directions: text });
+            setDirectionsEditing(false);
+            setError("");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to save directions");
+        } finally {
+            setDirectionsSaving(false);
+        }
+    };
+
+    const handleDeleteDirections = async () => {
+        if (!window.confirm("Delete review directions for all papers?")) {
+            return;
+        }
+
+        setDirectionsSaving(true);
+        try {
+            await axios.delete(`${API_BASE}/management/settings/review-directions`);
+            setDirectionsText("");
+            setDirectionsEditing(false);
+            setError("");
+        } catch (err) {
+            setError(err.response?.data?.message || "Failed to delete directions");
+        } finally {
+            setDirectionsSaving(false);
+        }
+    };
+
     const reviewerOptionsByPaper = useMemo(() => {
         const result = {};
         for (const paper of papers) {
@@ -161,8 +204,84 @@ function ReviewManagement() {
             </select>
             </div>
 
-
             {error && <div className="error">{error}</div>}
+
+            <section className="panel" style={{marginBottom:'20px'}}>
+                <div className="table-head">
+                    <h2 className="panel-title">Review Directions for All Papers</h2>
+                </div>
+                
+                {directionsEditing ? (
+                    <div style={{padding:'15px'}}>
+                        <textarea
+                            rows="4"
+                            value={directionsText}
+                            onChange={(e) => setDirectionsText(e.target.value)}
+                            placeholder="Enter directions for reviewers to follow when reviewing any paper..."
+                            style={{ width: '100%', padding: '8px', fontFamily: 'monospace', marginBottom: '8px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleSaveDirections}
+                                disabled={directionsSaving}
+                            >
+                                {directionsSaving ? "Saving..." : "Save Directions"}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setDirectionsEditing(false)}
+                                disabled={directionsSaving}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{padding:'15px'}}>
+                        {directionsText ? (
+                            <div>
+                                <p style={{ whiteSpace: 'pre-wrap', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '10px', backgroundColor: 'white', borderRadius: '4px', marginBottom:'10px' }}>
+                                    {directionsText}
+                                </p>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => setDirectionsEditing(true)}
+                                    >
+                                        Edit Directions
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        onClick={handleDeleteDirections}
+                                        disabled={directionsSaving}
+                                    >
+                                        Delete Directions
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <p style={{ fontStyle: 'italic', color: '#999', marginBottom:'10px' }}>No directions set yet.</p>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        setDirectionsEditing(true);
+                                        setDirectionsText("");
+                                    }}
+                                >
+                                    Add Directions
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </section>
 
             {papers.map((paper) => (
                 <section className="panel table-panel" key={paper.paper_id}>

@@ -110,6 +110,15 @@ CREATE TABLE conference_settings (
     NOT NULL DEFAULT 'double_blind'
 );
 
+CREATE TABLE conference_review_directions (
+  id SERIAL PRIMARY KEY,
+  directions TEXT,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE best_paper_votes (
   vote_id BIGSERIAL PRIMARY KEY,
   paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,

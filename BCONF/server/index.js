@@ -1406,6 +1406,84 @@ app.put("/management/settings/review-type", protect, async (req, res) => {
     }
 });
 
+// Review Directions Endpoints (Global Settings)
+
+app.get("/management/settings/review-directions", protect, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT id, directions, created_by, updated_by, created_at, updated_at FROM conference_review_directions LIMIT 1"
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ directions: null });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/management/settings/review-directions", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const { directions } = req.body;
+        const directionsText = typeof directions === "string" ? directions.trim() : "";
+
+        if (!directionsText) {
+            return res.status(400).json({ message: "Directions cannot be empty" });
+        }
+
+        const existing = await pool.query(
+            "SELECT id FROM conference_review_directions LIMIT 1"
+        );
+
+        let result;
+        if (existing.rows.length > 0) {
+            result = await pool.query(
+                `UPDATE conference_review_directions 
+                 SET directions = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+                 RETURNING id, directions, created_by, updated_by, created_at, updated_at`,
+                [directionsText, req.user.id]
+            );
+        } else {
+            result = await pool.query(
+                `INSERT INTO conference_review_directions (directions, created_by, updated_by) 
+                 VALUES ($1, $2, $2) 
+                 RETURNING id, directions, created_by, updated_by, created_at, updated_at`,
+                [directionsText, req.user.id]
+            );
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.delete("/management/settings/review-directions", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        await pool.query(
+            "UPDATE conference_review_directions SET directions = NULL, updated_at = CURRENT_TIMESTAMP, updated_by = $1",
+            [req.user.id]
+        );
+
+        res.json({ message: "Directions deleted successfully" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 
 const startServer = async () => {
     try {

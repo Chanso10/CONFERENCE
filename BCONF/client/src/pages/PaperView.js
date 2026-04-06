@@ -35,6 +35,7 @@ function PaperView({ user }) {
     const [reviewType, setReviewType] = useState("double_blind");
     const [updatingApproval, setUpdatingApproval] = useState(false);
     const [approvalError, setApprovalError] = useState("");
+    const [directions, setDirections] = useState(null);
     const isChair = user.role === "admin" || user.role === "deputy";
 
     const loadRatings = useCallback(async () => {
@@ -57,6 +58,15 @@ function PaperView({ user }) {
             setReviewError("Unable to load discussion right now.");
         }
     }, [id]);
+
+    const loadDirections = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/management/settings/review-directions`);
+            setDirections(res.data.directions);
+        } catch (err) {
+            setDirections(null);
+        }
+    }, []);
 
     const loadReviewType = async () => {
         try {
@@ -99,10 +109,11 @@ function PaperView({ user }) {
                     (typeof res.data.author_id === "number" && res.data.author_id === user.id) ||
                     Boolean(res.data.is_authored_by_me);
                 if (isChair || !ownsPaper) {
-                    await Promise.all([loadRatings(), loadReviews()]);
+                    await Promise.all([loadRatings(), loadReviews(), loadDirections()]);
                 } else {
                     setRatings([]);
                     setReviews([]);
+                    setDirections(null);
                     setRatingError("");
                     setReviewError("");
                 }
@@ -115,7 +126,7 @@ function PaperView({ user }) {
         };
 
         loadPaper();
-    }, [id, isChair, loadRatings, loadReviews, user.id, user.role]);
+    }, [id, isChair, loadDirections, loadRatings, loadReviews, user.id, user.role]);
 
     const submitRating = async (e) => {
         e.preventDefault();
@@ -384,6 +395,15 @@ function PaperView({ user }) {
                         <h2 className="panel-title">Review Discussion</h2>
                         <p className="table-meta">{reviews.length} posts</p>
                     </div>
+
+                    {directions && (
+                        <div style={{marginBottom:'20px', padding:'15px', backgroundColor:'#e8f4f8', borderLeft:'4px solid #0288d1', borderRadius:'4px'}}>
+                            <h3 style={{marginTop:0, color:'#0288d1'}}>📋 Review Directions</h3>
+                            <p style={{whiteSpace: 'pre-wrap', margin:0}}>
+                                {directions}
+                            </p>
+                        </div>
+                    )}
 
                     {canPostDiscussion && (
                         <form onSubmit={submitReview} className="discussion-form">
