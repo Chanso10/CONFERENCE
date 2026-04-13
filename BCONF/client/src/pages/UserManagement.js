@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+function capitalizeFirstLetter(string) {
+  if (!string) return '';
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
 function UserManagement() {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
@@ -45,7 +49,7 @@ function UserManagement() {
                     <p className="table-meta">{users.length} total</p>
                 </div>
                 <div className="table-wrap">
-                    <table className="user-table">
+                    <table className="paper-table">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -64,14 +68,16 @@ function UserManagement() {
                                 <tr key={u.id}>
                                     <td>{u.name}</td>
                                     <td>{u.email}</td>
-                                    <td>{u.role}</td>
+                                    <td>{capitalizeFirstLetter(u.role)}</td>
                                     <td>
                                         <select
+                                            className="role-select"
                                             value={u.role}
                                             onChange={(e) => updateRole(u.id, e.target.value)}
                                         >
                                             <option value="author">Author</option>
                                             <option value="admin">Admin</option>
+                                            <option value="deputy">Deputy</option>
                                             <option value="reviewer">Reviewer</option>
                                         </select>
                                     </td>

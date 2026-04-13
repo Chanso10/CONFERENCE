@@ -1,102 +1,456 @@
-import React, {useEffect, useState} from "react";
-import {useParams, Link} from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
-function PaperView({ user }){
-    const {id}=useParams();
-    const [paper, setPaper]=useState(null);
-    const [error, setError]=useState("");
-    const [ratings, setRatings]=useState([]);
-    const [newRating, setNewRating]=useState("");
+const API_BASE = "http://localhost:5000";
+const MAX_REVIEW_LENGTH = 5000;
 
-    useEffect(()=>{
-        const loadPaper=async()=>{
-            try {
-                const res=await axios.get(`http://localhost:5000/papers/${id}`);
-                setPaper(res.data);
-                setError("");
-            } catch (err) {
-                setError("Failed to load paper or access denied");
-                setPaper(null);
-            }
-        }
+const formatTimestamp = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+    return date.toLocaleString();
+};
 
-        const loadRatings=async()=>{
-            try {
-                const res=await axios.get(`http://localhost:5000/papers/${id}/ratings`);
-                setRatings(res.data);
-            } catch (err) {
-                // If can't load ratings, just don't show them
-            }
-        }
+function PaperView({ user }) {
+    const { id } = useParams();
+    const [paper, setPaper] = useState(null);
+    const [error, setError] = useState("");
+    const [ratings, setRatings] = useState([]);
+    const [newRating, setNewRating] = useState("");
+    const [ratingError, setRatingError] = useState("");
+    const [reviews, setReviews] = useState([]);
+    const [newReview, setNewReview] = useState("");
+    const [reviewError, setReviewError] = useState("");
+    const [submittingRating, setSubmittingRating] = useState(false);
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const [antiBid, setAntiBid] = useState(false);
+    const [antiBidReason, setAntiBidReason] = useState("");
+    const [antiBidError, setAntiBidError] = useState("");
+    const [submittingAntiBid, setSubmittingAntiBid] = useState(false);
+    const [bestPaperVote, setBestPaperVote] = useState(false);
+    const [submittingBestPaperVote, setSubmittingBestPaperVote] = useState(false);
+    const [bestPaperVoteError, setBestPaperVoteError] = useState("");
+    const [reviewType, setReviewType] = useState("double_blind");
+    const [updatingApproval, setUpdatingApproval] = useState(false);
+    const [approvalError, setApprovalError] = useState("");
+    const [directions, setDirections] = useState(null);
+    const isChair = user.role === "admin" || user.role === "deputy";
 
-        loadPaper();
-        loadRatings();
-    },[id]);
-
-    const submitRating = async (e) => {
-        e.preventDefault();
+    const loadRatings = useCallback(async () => {
         try {
-            await axios.post(`http://localhost:5000/papers/${id}/ratings`, { rating: parseInt(newRating) });
-            const res = await axios.get(`http://localhost:5000/papers/${id}/ratings`);
+            const res = await axios.get(`${API_BASE}/papers/${id}/ratings`);
             setRatings(res.data);
-            setNewRating("");
+            setRatingError("");
         } catch (err) {
-            setError("Failed to submit rating");
+            setRatings([]);
+        }
+    }, [id]);
+
+    const loadReviews = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/papers/${id}/reviews`);
+            setReviews(res.data);
+            setReviewError("");
+        } catch (err) {
+            setReviews([]);
+            setReviewError("Unable to load discussion right now.");
+        }
+    }, [id]);
+
+    const loadDirections = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/management/settings/review-directions`);
+            setDirections(res.data.directions);
+        } catch (err) {
+            setDirections(null);
+        }
+    }, []);
+
+    const loadReviewType = async () => {
+        try {
+            const res = await axios.get("http://localhost:5000/management/settings/review-type");
+            console.log("Loaded review type:", res.data.review_type);
+            setReviewType(res.data.review_type);
+        } catch (err) {
+            console.error("Failed to load review type:", err);
+            setReviewType("double_blind");
         }
     };
 
-    if(error) return <main className="app-shell"><div className="panel error">{error}</div></main>;
-    if(!paper) return <main className="app-shell"><div className="panel">Loading...</div></main>;
+    const showAuthor = (paper) => {
+        if (user.role === "admin" || user.role === "deputy") {
+            return true;
+        }
+        if(user.role === "reviewer") {
+            if (reviewType === "single_blind" || reviewType === "open") {
+                return true;
+            }
+        }
 
-    return(
+        return paper.author_id === user.id;
+    };
+
+
+    useEffect(() => {
+        loadReviewType();
+        const loadPaper = async () => {
+            try {
+                const res = await axios.get(`${API_BASE}/papers/${id}`);
+                setPaper(res.data);
+                if (user.role === "reviewer") {
+                    setAntiBid(Boolean(res.data.anti_bid));
+                    setAntiBidReason(res.data.anti_bid_reason || "");
+                    setBestPaperVote(Boolean(res.data.best_paper_vote));
+                }
+                setError("");
+                const ownsPaper =
+                    (typeof res.data.author_id === "number" && res.data.author_id === user.id) ||
+                    Boolean(res.data.is_authored_by_me);
+                if (isChair || !ownsPaper) {
+                    await Promise.all([loadRatings(), loadReviews(), loadDirections()]);
+                } else {
+                    setRatings([]);
+                    setReviews([]);
+                    setDirections(null);
+                    setRatingError("");
+                    setReviewError("");
+                }
+            } catch (err) {
+                setError("Failed to load paper or access denied");
+                setPaper(null);
+                setRatings([]);
+                setReviews([]);
+            }
+        };
+
+        loadPaper();
+    }, [id, isChair, loadDirections, loadRatings, loadReviews, user.id, user.role]);
+
+    const submitRating = async (e) => {
+        e.preventDefault();
+        setSubmittingRating(true);
+        try {
+            await axios.post(`${API_BASE}/papers/${id}/ratings`, { rating: Number.parseInt(newRating, 10) });
+            await loadRatings();
+            setNewRating("");
+        } catch (err) {
+            setRatingError("Failed to submit rating");
+        } finally {
+            setSubmittingRating(false);
+        }
+    };
+
+    const submitReview = async (e) => {
+        e.preventDefault();
+        const trimmedReview = newReview.trim();
+
+        if (!trimmedReview) {
+            setReviewError("Please add text before posting.");
+            return;
+        }
+
+        setSubmittingReview(true);
+        try {
+            await axios.post(`${API_BASE}/papers/${id}/reviews`, { body: trimmedReview });
+            await loadReviews();
+            setNewReview("");
+        } catch (err) {
+            setReviewError("Failed to post review");
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    const submitAntiBid = async (e) => {
+        e.preventDefault();
+        setSubmittingAntiBid(true);
+        try {
+            await axios.put(`${API_BASE}/papers/${id}/anti-bid`, {
+                antiBid,
+                reason: antiBidReason,
+            });
+            setAntiBidError("");
+            await loadPapersafe();
+        } catch (err) {
+            setAntiBidError(err.response?.data?.message || "Failed to save anti-bid");
+        } finally {
+            setSubmittingAntiBid(false);
+        }
+    };
+
+    const submitBestPaperVote = async (shouldVote) => {
+        setSubmittingBestPaperVote(true);
+        try {
+            if (shouldVote) {
+                await axios.post(`${API_BASE}/papers/${id}/best-paper-vote`);
+                setBestPaperVote(true);
+            } else {
+                await axios.delete(`${API_BASE}/papers/${id}/best-paper-vote`);
+                setBestPaperVote(false);
+            }
+            setBestPaperVoteError("");
+        } catch (err) {
+            setBestPaperVoteError(err.response?.data?.message || "Failed to save best paper vote");
+            // Revert the UI state if the request failed
+            setBestPaperVote(!shouldVote);
+        } finally {
+            setSubmittingBestPaperVote(false);
+        }
+    };
+
+    const loadPapersafe = async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/papers/${id}`);
+            setPaper(res.data);
+            setAntiBid(Boolean(res.data.anti_bid));
+            setAntiBidReason(res.data.anti_bid_reason || "");
+            setBestPaperVote(Boolean(res.data.best_paper_vote));
+        } catch (err) {
+            // no-op; page-level error handling already covers hard failures
+        }
+    };
+
+    const updateApproval = async (newApproval) => {
+
+        const confirmed = window.confirm(
+            `Change approval status to ${newApproval}?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setUpdatingApproval(true);
+        setApprovalError("");
+        try {
+            const res = await axios.put(`${API_BASE}/papers/${id}/approval`, { approval: newApproval });
+            setPaper((prev) => ({ ...prev, approval: res.data.approval }));
+        } catch (err) {
+            setApprovalError(err.response?.data?.message || "Failed to update approval status");
+        } finally {
+            setUpdatingApproval(false);
+        }
+    };
+    if (error) {
+        return (
+            <main className="app-shell">
+                <div className="error">{error}</div>
+            </main>
+        );
+    }
+
+    if (!paper) {
+        return (
+            <main className="app-shell">
+                <section className="panel loading-panel">Loading...</section>
+            </main>
+        );
+    }
+
+    const isAuthoredByMe =
+        (typeof paper.author_id === "number" && paper.author_id === user.id) || Boolean(paper.is_authored_by_me);
+    const userHasSubmittedReview = reviews.some(review => review.author_id === user.id);
+    const userHasSubmittedRating = ratings.some(rating => rating.editor_id === user.id);
+    //If stuff starts breaking again, use these to check whats actually happening
+    //console.log("Ratings:", ratings);
+    //console.log("Reviews:", reviews);
+    //console.log("User ID:", user.id);
+    //console.log("userHasSubmittedRating:", userHasSubmittedRating);
+    //console.log("userHasSubmittedReview:", userHasSubmittedReview);
+    const canSeeFeedback = isChair || !isAuthoredByMe;
+    const canPostDiscussion =
+        canSeeFeedback && user.role !== "author" && (user.role !== "reviewer" || paper.is_assigned);
+
+    return (
         <main className="app-shell">
             <section className="page-header">
                 <div>
                     <p className="page-kicker">Paper Detail</p>
                     <h1 className="page-title">Review Submission</h1>
                 </div>
-                <Link className="btn btn-secondary" to ="/papers">Back to List</Link>
+                <Link className="btn btn-secondary" to="/papers">
+                    Back to List
+                </Link>
             </section>
 
             <section className="paper-view-layout">
                 <aside className="panel">
-                    <h2 className="panel-title">{paper.author}</h2>
+                    <h2 className="panel-title">{paper.title || "Untitled Paper"}</h2>
+                    {showAuthor(paper) && paper.author && <p className="table-meta">Author: {paper.author}</p>}
+                    
                     <p className="paper-description">{paper.description}</p>
-                    {user && user.role === 'reviewer' && (
-                        <form onSubmit={submitRating} className="rating-form">
-                            <label>
-                                Rating (1-5):
-                                <select value={newRating} onChange={e => setNewRating(e.target.value)} required>
-                                    <option value="">Select</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
-                                    <option value="5">5</option>
-                                </select>
-                            </label>
-                            <button type="submit">Submit Rating</button>
-                        </form>
+                    {isChair && (
+                        <div className="approval-section">
+                            <p className="table-meta">Approval Status: <strong>{paper.approval}</strong></p>
+                            <div className="approval-buttons">
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => updateApproval('Approved')}
+                                    disabled={updatingApproval || paper.approval === 'Approved'}
+                                >
+                                    {updatingApproval ? 'Updating...' : 'Approve'}
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => updateApproval('Denied')}
+                                    disabled={updatingApproval || paper.approval === 'Denied'}
+                                >
+                                    {updatingApproval ? 'Updating...' : 'Deny'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {user && user.role === "reviewer" && paper.is_assigned && (
+                        <>
+                            <form onSubmit={submitRating} className="rating-form">
+                                <label className="field">
+                                    <span>Rating (1-5)</span>
+                                    <select
+                                        className="role-select"
+                                        value={newRating}
+                                        onChange={(e) => setNewRating(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Select</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                    </select>
+                                </label>
+                                <button type="submit" className="btn btn-primary" disabled={submittingRating}>
+                                    {submittingRating ? "Submitting..." : "Submit Rating"}
+                                </button>
+                                {ratingError && <div className="error">{ratingError}</div>}
+                            </form>
+                            <form onSubmit={submitAntiBid} className="rating-form">
+                                <label className="field">
+                                    <span>
+                                        <input
+                                            type="checkbox"
+                                            checked={antiBid}
+                                            onChange={(e) => setAntiBid(e.target.checked)}
+                                        />{" "}
+                                        Anti-bid (decline this assignment)
+                                    </span>
+                                </label>
+                                <label className="field">
+                                    <span>Optional reason</span>
+                                    <textarea
+                                        rows="3"
+                                        value={antiBidReason}
+                                        onChange={(e) => setAntiBidReason(e.target.value)}
+                                        placeholder="Optional: Share conflict reason or concerns..."
+                                    />
+                                </label>
+                                <button type="submit" className="btn btn-secondary" disabled={submittingAntiBid}>
+                                    {submittingAntiBid ? "Saving..." : "Save Anti-Bid"}
+                                </button>
+                                {antiBidError && <div className="error">{antiBidError}</div>}
+                            </form>
+                            <div className="rating-form">
+                                <label className="field">
+                                    <span>
+                                        <input
+                                            type="checkbox"
+                                            checked={bestPaperVote}
+                                            onChange={(e) => submitBestPaperVote(e.target.checked)}
+                                            disabled={submittingBestPaperVote}
+                                        />{" "}
+                                        Vote for best paper
+                                    </span>
+                                </label>
+                                {bestPaperVoteError && <div className="error">{bestPaperVoteError}</div>}
+                            </div>
+                        </>
                     )}
                 </aside>
 
                 <article className="panel pdf-panel">
-                    <iframe
-                        src={`http://localhost:5000/${paper.pdf_path}`}
-                        title="paper-pdf"
-                    />
+                    <iframe src={`${API_BASE}/${paper.pdf_path}`} title="paper-pdf" />
                 </article>
             </section>
 
-            {ratings.length > 0 && (
+            {canSeeFeedback && userHasSubmittedRating && ratings.length > 0 && (
                 <section className="panel">
-                    <h2>Reviews</h2>
-                    {ratings.map(r => (
-                        <div key={r.id} className="review">
-                            <p>Reviewer {r.editor_id}: Rating {r.rating}/5</p>
+                    <div className="table-head">
+                        <h2 className="panel-title">Ratings</h2>
+                    </div>
+                    <div className="review-list">
+                        {ratings.map((rating) => (
+                            <div key={rating.id} className="review">
+                                {rating.reviewer_label || rating.reviewer_name || "Reviewer"}: {rating.rating}/5
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {canSeeFeedback && (
+                <section className="panel">
+                    <div className="table-head">
+                        <h2 className="panel-title">Review Discussion</h2>
+                        <p className="table-meta">{reviews.length} posts</p>
+                    </div>
+
+                    {directions && (
+                        <div style={{marginBottom:'20px', padding:'15px', backgroundColor:'#e8f4f8', borderLeft:'4px solid #0288d1', borderRadius:'4px'}}>
+                            <h3 style={{marginTop:0, color:'#0288d1'}}>📋 Review Directions</h3>
+                            <p style={{whiteSpace: 'pre-wrap', margin:0}}>
+                                {directions}
+                            </p>
                         </div>
-                    ))}
+                    )}
+
+                    {canPostDiscussion && (
+                        <form onSubmit={submitReview} className="discussion-form">
+                            <label className="field">
+                                <span>Add your review notes</span>
+                                <textarea
+                                    rows="4"
+                                    value={newReview}
+                                    onChange={(e) => setNewReview(e.target.value)}
+                                    maxLength={MAX_REVIEW_LENGTH}
+                                    placeholder="Share strengths, concerns, and recommendations..."
+                                    required
+                                />
+                            </label>
+                            <div className="form-actions">
+                                <p className="table-meta">
+                                    {newReview.length}/{MAX_REVIEW_LENGTH}
+                                </p>
+                                <button type="submit" className="btn btn-primary" disabled={submittingReview}>
+                                    {submittingReview ? "Posting..." : "Post Review"}
+                                </button>
+                            </div>
+                            {reviewError && <p className="form-error">{reviewError}</p>}
+                        </form>
+                    )}
+
+                    <div className="review-list">
+                        {reviews.length === 0 && (
+                            <div className="empty-state review-empty">
+                                No reviews yet.
+                            </div>
+                        )}
+                        {userHasSubmittedReview && reviews.map((review) => (
+                            <article key={review.review_id} className="review">
+                                <div className="review-header">
+                                    <div className="review-author-group">
+                                        <span className="review-author">{review.author_name}</span>
+                                        <span className="review-role-badge">{review.author_role}</span>
+                                    </div>
+                                    <time className="review-time" dateTime={review.created_at}>
+                                        {formatTimestamp(review.created_at)}
+                                    </time>
+                                </div>
+                                <p className="review-body">{review.body}</p>
+                            </article>
+                        ))}
+                    </div>
                 </section>
             )}
         </main>

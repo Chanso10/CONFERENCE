@@ -1,0 +1,36 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies and package manager artifacts
+**/node_modules/
+**/.pnp
+**/.pnp.js
+
+# Build outputs
+**/build/
+**/dist/
+**/.cache/
+
+# Test / coverage outputs
+**/coverage/
+
+# Local archives / dumps
+*.zip
+
+# Local/generated PDFs
+*.pdf
+**/uploads/*.pdf

@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from "react";
+import React, { useState } from "react";
 
 const InputPaper = () =>{
 
@@ -21,13 +21,18 @@ const InputPaper = () =>{
     }
 
     return (
-    <Fragment>
-        <h1 className="text-center mt-5">Submitted Papers</h1>
-        <form className="d-flex mt-5" onSubmit={onSubmitForm}>
-            <input type="text" className="form-control" value={description} onChange={e=> setDescription(e.target.value)}/>
-            <button className= "btn-success"> Add </button>
-        </form>
-    </Fragment>
+        <main className="app-shell">
+            <form className="panel paper-form" onSubmit={onSubmitForm}>
+                <h2 className="panel-title">Submit Paper</h2>
+                <label className="field">
+                    <span>Description</span>
+                    <input type="text" value={description} onChange={e=> setDescription(e.target.value)} />
+                </label>
+                <div className="form-actions">
+                    <button className="btn btn-primary" type="submit">Add</button>
+                </div>
+            </form>
+        </main>
     );
 };
 

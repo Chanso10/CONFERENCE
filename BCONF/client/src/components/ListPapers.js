@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const ListPapers = () => {
@@ -29,52 +29,47 @@ const ListPapers = () => {
     getPapers();
   }, []);
 
-  console.log(papers);
-
   return (
-    <Fragment>
-      {" "}
-      <table className="table mt-5 text-center">
-        <thead>
-          <tr>
-            <th>Author</th>
-            <th>Description</th>
-            <th>Edit</th>
-            <th>Delete</th>
-            <th>View</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/*<tr>
-            <td>John</td>
-            <td>Doe</td>
-            <td>john@example.com</td>
-          </tr> */}
-          {papers.map(paper => (
-            <tr key={paper.paper_id}>
-              <td>{paper.author}</td>
-              <td>{paper.description}
-              </td>
-              <td>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => deletePaper(paper.paper_id)}
-                >
-                  Delete
-                </button>
-              </td>
-              <td>
-                <button
-                 className="btn btn-danger"
-                 >
-                    Veiw
-                 </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Fragment>
+    <main className="app-shell">
+      <section className="panel table-panel">
+        <div className="table-head">
+          <h2 className="panel-title">Submitted Papers</h2>
+          <p className="table-meta">{papers.length} total</p>
+        </div>
+        <div className="table-wrap">
+          <table className="paper-table">
+            <thead>
+              <tr>
+                <th>Author</th>
+                <th>Description</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {papers.length === 0 && (
+                <tr>
+                  <td className="empty-state" colSpan="3">No papers found.</td>
+                </tr>
+              )}
+              {papers.map(paper => (
+                <tr key={paper.paper_id}>
+                  <td className="author-cell">{paper.author}</td>
+                  <td>{paper.description}</td>
+                  <td>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => deletePaper(paper.paper_id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
   );
 };
 

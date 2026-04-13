@@ -19,22 +19,36 @@ const Navbar = ({user, setUser}) => {
         navigate("/register");
     };
 
-    return <nav className="">
-        <Link to="/" >Home</Link>
-        <div>{user ? (
-            <>
-                <button onClick={handleLogout}>Logout</button>
-                {user.role === 'admin' && <Link to="/users">Manage Users</Link>}
-            </>
-        ) : (
-            <><button onClick={handleLogin}>Login</button>
-            <button onClick={handleRegister}>Register</button>
-            </>
-
-        )}</div>
-        <Link to="/papers">Papers</Link>
-        
-    </nav>;
+    return (
+        <header className="top-nav-wrap">
+            <nav className="top-nav">
+                <Link to="/" className="brand">BCONF</Link>
+                <div className="nav-links">
+                    <Link to="/" className="nav-link">Home</Link>
+                    <Link to="/papers" className="nav-link">Papers</Link>
+                    {user && (user.role === "admin" || user.role === "deputy") && (
+                        <Link to="/management" className="nav-link">Manage Reviews</Link>
+                    )}
+                    {user && user.role === "admin" && (
+                        <Link to="/users" className="nav-link">Manage Users</Link>
+                    )}
+                </div>
+                <div className="nav-actions">
+                    {user ? (
+                        <>
+                            <span className="user-pill">{user.name}</span>
+                            <button className="btn btn-secondary" onClick={handleLogout}>Logout</button>
+                        </>
+                    ) : (
+                        <>
+                            <button className="btn btn-secondary" onClick={handleLogin}>Login</button>
+                            <button className="btn btn-primary" onClick={handleRegister}>Register</button>
+                        </>
+                    )}
+                </div>
+            </nav>
+        </header>
+    );
 };
 
 export default Navbar;
