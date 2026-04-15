@@ -10,7 +10,7 @@ function PaperList(){
     const [pdf, setPdf]=useState(null);
 
     const  loadPapers= async()=>{
-        const res = await fetch("http://localhost:5000/papers");
+        const res = await fetch(`${process.env.REACT_APP_API_URL}/papers`);
         const data= await res.json();
         setPapers(data);
     };
@@ -26,7 +26,7 @@ function PaperList(){
         formData.append("description", description);
         formData.append("pdf", pdf);
 
-        await fetch("http://localhost:5000/papers",{
+        await fetch(`${process.env.REACT_APP_API_URL}/papers`,{
             method:"POST",
             body: formData
         });

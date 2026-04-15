@@ -4,7 +4,7 @@ import axios from "axios";
 import SearchInput from "../components/SearchInput";
 import PaperSearchIndex from "../search/PaperSearchIndex";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL;
 
 function PaperList({ user }){
     const [papers, setPapers]=useState([]);

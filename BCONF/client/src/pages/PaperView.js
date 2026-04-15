@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL;
 const MAX_REVIEW_LENGTH = 5000;
 
 const formatTimestamp = (value) => {
@@ -70,7 +70,7 @@ function PaperView({ user }) {
 
     const loadReviewType = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/management/settings/review-type");
+            const res = await axios.get(`${API_BASE}/management/settings/review-type`);
             console.log("Loaded review type:", res.data.review_type);
             setReviewType(res.data.review_type);
         } catch (err) {

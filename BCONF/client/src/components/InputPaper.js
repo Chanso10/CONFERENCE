@@ -8,7 +8,7 @@ const InputPaper = () =>{
         e.preventDefault();
         try {
             const body = {description};
-            const response = await fetch ("http://localhost:5000/papers",{
+            const response = await fetch (`${process.env.REACT_APP_API_URL}/papers`,{
             method: "POST",
             headers:{"Content-Type": "application/json"},
             body: JSON.stringify(body)

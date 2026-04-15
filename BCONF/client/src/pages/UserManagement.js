@@ -14,7 +14,7 @@ function UserManagement() {
 
     const loadUsers = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/auth/users");
+            const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/auth/users`);
             setUsers(res.data);
             setError("");
         } catch (err) {
@@ -29,8 +29,8 @@ function UserManagement() {
 
     const updateRole = async (id, newRole) => {
         try {
-            await axios.put(`http://localhost:5000/api/auth/users/${id}/role`, { role: newRole });
-            await loadUsers();
+            await axios.put(`${process.env.REACT_APP_API_URL}/api/auth/users/${id}/role`, { role: newRole });
+            loadUsers(); // Reload to show updated roles
         } catch (err) {
             setError("Failed to update role");
         }

@@ -125,6 +125,16 @@ CREATE TABLE conference_review_directions (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE paper_meta_reviews (
+  meta_review_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,
+  author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  body TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (paper_id)
+);
+
 CREATE TABLE best_paper_votes (
   vote_id BIGSERIAL PRIMARY KEY,
   paper_id INTEGER NOT NULL REFERENCES papers(paper_id) ON DELETE CASCADE,

@@ -1305,6 +1305,101 @@ app.post("/papers/:id/reviews", protect, async (req, res) => {
     }
 });
 
+app.get("/papers/:id/meta-review", protect, async (req, res) => {
+    try {
+        const paperId = parsePositiveInt(req.params.id);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        const paper = await fetchPaperById(paperId);
+        if (!paper) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+        if (req.user.role === "author" && paper.author_id === req.user.id) {
+            return res.status(403).json({ message: "Authors cannot view discussion for their own papers" });
+        }
+
+        if (req.user.role === "reviewer") {
+            const canView = await isAssignedReviewer(paperId, req.user.id);
+            if (!canView) {
+                return res.status(403).json({ message: "Only assigned reviewers can view meta review" });
+            }
+        } else if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const result = await pool.query(
+            `SELECT meta_review_id, paper_id, author_id, body, created_at, updated_at
+             FROM paper_meta_reviews
+             WHERE paper_id = $1`,
+            [paperId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ meta_review: null });
+        }
+
+        res.json({ meta_review: result.rows[0].body });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/papers/:id/meta-review", protect, async (req, res) => {
+    try {
+        const paperId = parsePositiveInt(req.params.id);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const paper = await fetchPaperById(paperId);
+        if (!paper) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+        const rawBody = typeof req.body.body === "string" ? req.body.body : "";
+        const body = rawBody.trim();
+        if (!body) {
+            return res.status(400).json({ message: "Meta-review text is required" });
+        }
+
+        const existing = await pool.query(
+            "SELECT meta_review_id FROM paper_meta_reviews WHERE paper_id = $1",
+            [paperId]
+        );
+
+        let result;
+        if (existing.rows.length > 0) {
+            result = await pool.query(
+                `UPDATE paper_meta_reviews
+                 SET body = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE paper_id = $2
+                 RETURNING meta_review_id, paper_id, author_id, body, created_at, updated_at`,
+                [body, paperId]
+            );
+        } else {
+            result = await pool.query(
+                `INSERT INTO paper_meta_reviews (paper_id, author_id, body)
+                 VALUES ($1, $2, $3)
+                 RETURNING meta_review_id, paper_id, author_id, body, created_at, updated_at`,
+                [paperId, req.user.id, body]
+            );
+        }
+
+        res.json({ meta_review: result.rows[0].body });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
 // Best Paper Voting endpoints
 app.post("/papers/:id/best-paper-vote", protect, async (req, res) => {
     try {

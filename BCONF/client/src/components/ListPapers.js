@@ -8,7 +8,7 @@ const ListPapers = () => {
 
   const deletePaper = async id => {
     try {
-      await axios.delete(`http://localhost:5000/papers/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/papers/${id}`);
       setPapers(papers.filter(paper => paper.paper_id !== id));
     } catch (err) {
       console.error(err.message);
@@ -17,7 +17,7 @@ const ListPapers = () => {
 
   const getPapers = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/papers");
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/papers`);
       setPapers(response.data);
     } catch (err) {
       console.error(err.message);
