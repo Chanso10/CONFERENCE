@@ -133,6 +133,28 @@ const ensureConferenceSchema = async () => {
         ADD COLUMN IF NOT EXISTS approval VARCHAR(16) NOT NULL DEFAULT 'pending'
     `);
 
+    try {
+        await pool.query(`
+            ALTER TABLE ratings
+            ALTER COLUMN rating TYPE VARCHAR(50)
+            USING rating::TEXT
+        `);
+
+        await pool.query(`
+            UPDATE ratings
+            SET rating = CASE rating
+                WHEN '1' THEN 'Reject'
+                WHEN '2' THEN 'Lean to Reject'
+                WHEN '3' THEN 'Lean to Accept'
+                WHEN '4' THEN 'Accept with Revisions'
+                WHEN '5' THEN 'Accept'
+                ELSE rating
+            END
+        `);
+    } catch (err) {
+        // Ratings table may not exist yet or may already be text
+    }
+
     await pool.query(`
         CREATE TABLE IF NOT EXISTS paper_reviews (
             review_id BIGSERIAL PRIMARY KEY,
@@ -509,7 +531,7 @@ app.put("/papers/:id/approval", protect, async (req, res) => {
         }
 
         const { approval } = req.body;
-        const validApprovals = ["Pending", "Approved", "Denied"];
+        const validApprovals = ["Pending", "Approved", "Denied","Awaiting Changes"];
         if (!validApprovals.includes(approval)) {
             return res.status(400).json({ message: "Invalid approval value" });
         }
@@ -1109,9 +1131,17 @@ app.post("/papers/:id/ratings", protect, async (req, res) => {
         }
 
         const { rating } = req.body;
-        const numericRating = Number.parseInt(rating, 10);
-        if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
-            return res.status(400).json({ message: "Rating must be between 1 and 5" });
+        const validRatings = [
+            'Accept',
+            'Accept with Revisions',
+            'Lean to Accept',
+            'Lean to Reject',
+            'Reject',
+        ];
+
+        const ratingValue = typeof rating === 'string' ? rating.trim() : '';
+        if (!validRatings.includes(ratingValue)) {
+            return res.status(400).json({ message: 'Invalid rating option' });
         }
 
         const newRating = await pool.query(
@@ -1120,7 +1150,7 @@ app.post("/papers/:id/ratings", protect, async (req, res) => {
             VALUES ($1, $2, $3)
             RETURNING *
             `,
-            [paperId, req.user.id, numericRating]
+            [paperId, req.user.id, ratingValue]
         );
 
         res.status(201).json(newRating.rows[0]);

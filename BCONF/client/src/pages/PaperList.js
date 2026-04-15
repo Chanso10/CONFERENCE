@@ -112,7 +112,9 @@ function PaperList({ user }){
             return papers;
         }
         return papers.filter((paper) => {
-            const status = paper.approval ? paper.approval.toLowerCase() : "pending";
+            const status = (paper.approval || "pending")
+                .toLowerCase()
+                .replace(/\s+/g, "-");
             return status === approvalFilter;
         });
     }, [papers, approvalFilter]);
@@ -125,7 +127,11 @@ function PaperList({ user }){
     const activeSearchQuery = deferredSearchQuery.trim();
     const hasSearchQuery = activeSearchQuery.length > 0;
     const isSearchUpdating = searchQuery !== deferredSearchQuery;
-    const emptyStateColSpan = isReviewer ? (showAuthorColumn ? 5 : 4) : 4;
+    const emptyStateColSpan = isReviewer
+    ? (showAuthorColumn ? 5 : 4)
+    : isChair
+        ? 5
+        : 4;
     const tableMeta = hasSearchQuery
         ? `${visiblePapers.length} of ${papers.length} matching`
         : `${papers.length} total`;
@@ -196,6 +202,7 @@ function PaperList({ user }){
                                 <option value="all">All Papers</option>
                                 <option value="approved">Approved</option>
                                 <option value="denied">Denied</option>
+                                <option value="awaiting-changes">Awaiting Changes</option>
                                 <option value="pending">Pending</option>
                             </select>
                         </div>
@@ -219,6 +226,7 @@ function PaperList({ user }){
                                 {isChair && <th>Email</th>}
                                 <th>Description</th>
                                 {isReviewer && <th>Status</th>}
+                                {isChair && <th>Approval</th>}
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -235,6 +243,7 @@ function PaperList({ user }){
                                     {showAuthorColumn && isChair && <td className="email-cell">{p.author_email}</td>}
                                     <td>{p.description}</td>
                                     {isReviewer && <td>{reviewerStatus(p)}</td>}
+                                    {isChair && <td>{p.approval || "Pending"}</td>}
                                     <td>
                                         {canViewPaper(p) && (
                                             <Link className="btn btn-secondary" to={`/papers/${p.paper_id}`}>View Paper</Link>

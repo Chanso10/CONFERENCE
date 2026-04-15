@@ -132,7 +132,7 @@ function PaperView({ user }) {
         e.preventDefault();
         setSubmittingRating(true);
         try {
-            await axios.post(`${API_BASE}/papers/${id}/ratings`, { rating: Number.parseInt(newRating, 10) });
+            await axios.post(`${API_BASE}/papers/${id}/ratings`, { rating: newRating });
             await loadRatings();
             setNewRating("");
         } catch (err) {
@@ -299,6 +299,13 @@ function PaperView({ user }) {
                                 >
                                     {updatingApproval ? 'Updating...' : 'Deny'}
                                 </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => updateApproval('Awaiting Changes')}
+                                    disabled={updatingApproval || paper.approval === 'Awaiting Changes'}
+                                >
+                                    {updatingApproval ? 'Updating...' : 'Awaiting Changes'}
+                                </button>
                             </div>
                         </div>
                     )}
@@ -306,7 +313,7 @@ function PaperView({ user }) {
                         <>
                             <form onSubmit={submitRating} className="rating-form">
                                 <label className="field">
-                                    <span>Rating (1-5)</span>
+                                    <span>Rating</span>
                                     <select
                                         className="role-select"
                                         value={newRating}
@@ -314,11 +321,11 @@ function PaperView({ user }) {
                                         required
                                     >
                                         <option value="">Select</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
+                                        <option value="Accept">Accept</option>
+                                        <option value="Accept with Revisions">Accept with Revisions</option>
+                                        <option value="Lean to Accept">Lean to Accept</option>
+                                        <option value="Lean to Reject">Lean to Reject</option>
+                                        <option value="Reject">Reject</option>
                                     </select>
                                 </label>
                                 <button type="submit" className="btn btn-primary" disabled={submittingRating}>
@@ -382,7 +389,7 @@ function PaperView({ user }) {
                     <div className="review-list">
                         {ratings.map((rating) => (
                             <div key={rating.id} className="review">
-                                {rating.reviewer_label || rating.reviewer_name || "Reviewer"}: {rating.rating}/5
+                                {rating.reviewer_label || rating.reviewer_name || "Reviewer"}: {rating.rating}
                             </div>
                         ))}
                     </div>
