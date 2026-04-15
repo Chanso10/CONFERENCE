@@ -1,10 +1,10 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 
-const Navbar = ({user, setUser}) => {
+const Navbar = ({ user, setUser }) => {
     const navigate = useNavigate();
+    const canAccessPapers = !user || user.role !== "attendee";
 
     const handleLogout = async() => {
         await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/logout`);
@@ -15,8 +15,13 @@ const Navbar = ({user, setUser}) => {
     const handleLogin = () => {
         navigate("/login");
     };
+
     const handleRegister = () => {
         navigate("/register");
+    };
+
+    const handleAttendeeRegister = () => {
+        navigate("/attendee-register");
     };
 
     return (
@@ -25,7 +30,7 @@ const Navbar = ({user, setUser}) => {
                 <Link to="/" className="brand">BCONF</Link>
                 <div className="nav-links">
                     <Link to="/" className="nav-link">Home</Link>
-                    <Link to="/papers" className="nav-link">Papers</Link>
+                    {canAccessPapers && <Link to="/papers" className="nav-link">Papers</Link>}
                     {user && (user.role === "admin" || user.role === "deputy") && (
                         <Link to="/management" className="nav-link">Manage Reviews</Link>
                     )}
@@ -43,6 +48,7 @@ const Navbar = ({user, setUser}) => {
                         <>
                             <button className="btn btn-secondary" onClick={handleLogin}>Login</button>
                             <button className="btn btn-primary" onClick={handleRegister}>Register</button>
+                            <button className="btn btn-secondary" onClick={handleAttendeeRegister}>Attendee Register</button>
                         </>
                     )}
                 </div>

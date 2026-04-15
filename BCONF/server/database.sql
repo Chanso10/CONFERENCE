@@ -10,6 +10,12 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  institution VARCHAR(150),
+  pronouns VARCHAR(100),
+  allergies TEXT,
+  phone VARCHAR(50),
   email VARCHAR(100) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role VARCHAR(50) DEFAULT 'author',
@@ -143,4 +149,3 @@ CREATE INDEX best_paper_votes_paper_idx
 
 CREATE INDEX best_paper_votes_reviewer_idx
   ON best_paper_votes (reviewer_id);
-

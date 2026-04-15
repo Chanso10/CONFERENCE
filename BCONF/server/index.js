@@ -40,6 +40,8 @@ const parsePositiveInt = (value) => {
 };
 
 const isChair = (user) => user.role === "admin" || user.role === "deputy";
+const isPaperWorkflowUser = (user) => ["author", "reviewer", "admin", "deputy"].includes(user.role);
+const canSubmitPapers = (user) => ["author", "admin", "deputy"].includes(user.role);
 
 const fetchPaperById = async (paperId) => {
     const paper = await pool.query("SELECT * FROM papers WHERE paper_id = $1", [paperId]);
@@ -91,6 +93,36 @@ const getReviewerAliasMap = async (paperId, fallbackReviewerIds = []) => {
 };
 
 const ensureConferenceSchema = async () => {
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS institution VARCHAR(150)
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS pronouns VARCHAR(100)
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS allergies TEXT
+    `);
+
+    await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS phone VARCHAR(50)
+    `);
+
     await pool.query(`
         ALTER TABLE papers
         ADD COLUMN IF NOT EXISTS title VARCHAR(255)
@@ -220,8 +252,8 @@ const ensureConferenceSchema = async () => {
 
 app.post("/papers", protect, upload.single("pdf"), async (req, res) => {
     try {
-        if (req.user.role === "reviewer") {
-            return res.status(403).json({ message: "Reviewers cannot submit papers" });
+        if (!canSubmitPapers(req.user)) {
+            return res.status(403).json({ message: "Only authors and chairs can submit papers" });
         }
 
         const rawTitle = typeof req.body.title === "string" ? req.body.title.trim() : "";
@@ -246,6 +278,10 @@ app.post("/papers", protect, upload.single("pdf"), async (req, res) => {
 
 app.get("/papers", protect, async (req, res) => {
     try {
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
+        }
+
         if (isChair(req.user)) {
             const allPapers = await pool.query(
                 `
@@ -367,6 +403,10 @@ app.get("/papers/:id", protect, async (req, res) => {
         const paperId = parsePositiveInt(req.params.id);
         if (!paperId) {
             return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
         }
 
         const paper = await fetchPaperById(paperId);
@@ -502,6 +542,10 @@ app.put("/papers/:id", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
 
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
+        }
+
         const paper = await fetchPaperById(paperId);
         if (!paper) {
             return res.status(404).json({ message: "Paper not found" });
@@ -546,6 +590,10 @@ app.delete("/papers/:id", protect, async (req, res) => {
         const paperId = parsePositiveInt(req.params.id);
         if (!paperId) {
             return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
         }
 
         const paper = await fetchPaperById(paperId);
@@ -965,6 +1013,10 @@ app.get("/papers/:id/ratings", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
 
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
+        }
+
         const paper = await fetchPaperById(paperId);
         if (!paper) {
             return res.status(404).json({ message: "Paper not found" });
@@ -1085,6 +1137,10 @@ app.get("/papers/:id/reviews", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
 
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
+        }
+
         const paper = await fetchPaperById(paperId);
         if (!paper) {
             return res.status(404).json({ message: "Paper not found" });
@@ -1145,6 +1201,10 @@ app.post("/papers/:id/reviews", protect, async (req, res) => {
         const paperId = parsePositiveInt(req.params.id);
         if (!paperId) {
             return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        if (!isPaperWorkflowUser(req.user)) {
+            return res.status(403).json({ message: "Paper access is only available to authors, reviewers, and chairs" });
         }
 
         const paper = await fetchPaperById(paperId);
@@ -1348,9 +1408,18 @@ app.post("/papers/:id/best-paper-vote", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
 
+        if (req.user.role !== "reviewer") {
+            return res.status(403).json({ message: "Only assigned reviewers can vote for best paper" });
+        }
+
         const paper = await fetchPaperById(paperId);
         if (!paper) {
             return res.status(404).json({ message: "Paper not found" });
+        }
+
+        const assigned = await isAssignedReviewer(paperId, req.user.id);
+        if (!assigned) {
+            return res.status(403).json({ message: "Only assigned reviewers can vote for best paper" });
         }
 
         // Insert or update the best paper vote
@@ -1379,12 +1448,19 @@ app.delete("/papers/:id/best-paper-vote", protect, async (req, res) => {
             return res.status(400).json({ message: "Invalid paper ID" });
         }
 
+        if (req.user.role !== "reviewer") {
+            return res.status(403).json({ message: "Only assigned reviewers can vote for best paper" });
+        }
 
         const paper = await fetchPaperById(paperId);
         if (!paper) {
             return res.status(404).json({ message: "Paper not found" });
         }
 
+        const assigned = await isAssignedReviewer(paperId, req.user.id);
+        if (!assigned) {
+            return res.status(403).json({ message: "Only assigned reviewers can vote for best paper" });
+        }
 
         // Delete the best paper vote
         await pool.query(
