@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL;
 const MAX_REVIEW_LENGTH = 5000;
 
 const formatTimestamp = (value) => {
@@ -36,11 +36,6 @@ function PaperView({ user }) {
     const [updatingApproval, setUpdatingApproval] = useState(false);
     const [approvalError, setApprovalError] = useState("");
     const [directions, setDirections] = useState(null);
-    const [metaReview, setMetaReview] = useState(null);
-    const [metaReviewText, setMetaReviewText] = useState("");
-    const [editingMetaReview, setEditingMetaReview] = useState(false);
-    const [savingMetaReview, setSavingMetaReview] = useState(false);
-    const [metaReviewError, setMetaReviewError] = useState("");
     const isChair = user.role === "admin" || user.role === "deputy";
 
     const loadRatings = useCallback(async () => {
@@ -73,19 +68,9 @@ function PaperView({ user }) {
         }
     }, []);
 
-    const loadMetaReview = useCallback(async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/papers/${id}/meta-review`);
-            setMetaReview(res.data.meta_review);
-            setMetaReviewText(res.data.meta_review || "");
-        } catch (err) {
-            setMetaReview(null);
-        }
-    }, [id]);
-
     const loadReviewType = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/management/settings/review-type");
+            const res = await axios.get(`${API_BASE}/management/settings/review-type`);
             console.log("Loaded review type:", res.data.review_type);
             setReviewType(res.data.review_type);
         } catch (err) {
@@ -124,12 +109,11 @@ function PaperView({ user }) {
                     (typeof res.data.author_id === "number" && res.data.author_id === user.id) ||
                     Boolean(res.data.is_authored_by_me);
                 if (isChair || !ownsPaper) {
-                    await Promise.all([loadRatings(), loadReviews(), loadDirections(), loadMetaReview()]);
+                    await Promise.all([loadRatings(), loadReviews(), loadDirections()]);
                 } else {
                     setRatings([]);
                     setReviews([]);
                     setDirections(null);
-                    setMetaReview(null);
                     setRatingError("");
                     setReviewError("");
                 }
@@ -142,7 +126,7 @@ function PaperView({ user }) {
         };
 
         loadPaper();
-    }, [id, isChair, loadDirections, loadMetaReview, loadRatings, loadReviews, user.id, user.role]);
+    }, [id, isChair, loadDirections, loadRatings, loadReviews, user.id, user.role]);
 
     const submitRating = async (e) => {
         e.preventDefault();
@@ -176,30 +160,6 @@ function PaperView({ user }) {
             setReviewError("Failed to post review");
         } finally {
             setSubmittingReview(false);
-        }
-    };
-
-    const saveMetaReview = async (e) => {
-        e.preventDefault();
-        const trimmedReview = metaReviewText.trim();
-
-        if (!trimmedReview) {
-            setMetaReviewError("Please add text before saving.");
-            return;
-        }
-
-        setSavingMetaReview(true);
-        try {
-            const res = await axios.put(`${API_BASE}/papers/${id}/meta-review`, {
-                body: trimmedReview,
-            });
-            setMetaReview(res.data.meta_review);
-            setEditingMetaReview(false);
-            setMetaReviewError("");
-        } catch (err) {
-            setMetaReviewError(err.response?.data?.message || "Failed to save meta-review");
-        } finally {
-            setSavingMetaReview(false);
         }
     };
 
@@ -340,7 +300,6 @@ function PaperView({ user }) {
                                     {updatingApproval ? 'Updating...' : 'Deny'}
                                 </button>
                             </div>
-                            {approvalError && <div className="error">{approvalError}</div>}
                         </div>
                     )}
                     {user && user.role === "reviewer" && paper.is_assigned && (
@@ -436,72 +395,6 @@ function PaperView({ user }) {
                         <h2 className="panel-title">Review Discussion</h2>
                         <p className="table-meta">{reviews.length} posts</p>
                     </div>
-
-                    {(metaReview !== null || isChair) && (
-                        <div style={{marginBottom:'20px', padding:'15px', backgroundColor:'#fff8e1', borderLeft:'4px solid #f9a825', borderRadius:'4px'}}>
-                            <h3 style={{marginTop:0, color:'#f9a825'}}>📝 Meta Review</h3>
-                            {editingMetaReview ? (
-                                <form onSubmit={saveMetaReview} className="discussion-form">
-                                    <label className="field">
-                                        <span>Write a meta-review summary</span>
-                                        <textarea
-                                            rows="5"
-                                            value={metaReviewText}
-                                            onChange={(e) => setMetaReviewText(e.target.value)}
-                                            placeholder="Summarize the submitted reviews for this paper..."
-                                            required
-                                        />
-                                    </label>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button type="submit" className="btn btn-primary" disabled={savingMetaReview}>
-                                            {savingMetaReview ? "Saving..." : "Save Meta Review"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            onClick={() => {
-                                                setEditingMetaReview(false);
-                                                setMetaReviewText(metaReview || "");
-                                                setMetaReviewError("");
-                                            }}
-                                            disabled={savingMetaReview}
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                    {metaReviewError && <p className="form-error">{metaReviewError}</p>}
-                                </form>
-                            ) : metaReview ? (
-                                <div>
-                                    <p style={{whiteSpace: 'pre-wrap', margin:0}}>{metaReview}</p>
-                                    {isChair && (
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary"
-                                            onClick={() => {
-                                                setEditingMetaReview(true);
-                                                setMetaReviewText(metaReview || "");
-                                            }}
-                                            style={{ marginTop: '12px' }}
-                                        >
-                                            Edit Meta Review
-                                        </button>
-                                    )}
-                                </div>
-                            ) : isChair ? (
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    onClick={() => {
-                                        setEditingMetaReview(true);
-                                        setMetaReviewText("");
-                                    }}
-                                >
-                                    Add Meta Review
-                                </button>
-                            ) : null}
-                        </div>
-                    )}
 
                     {directions && (
                         <div style={{marginBottom:'20px', padding:'15px', backgroundColor:'#e8f4f8', borderLeft:'4px solid #0288d1', borderRadius:'4px'}}>
