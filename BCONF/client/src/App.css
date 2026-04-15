@@ -160,10 +160,22 @@ body {
   font-weight: 600;
 }
 
+.field .required-indicator,
+.required-note .required-indicator {
+  color: #c2362b;
+}
+
+.required-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 input[type="text"],
 input[type="search"],
 input[type="email"],
 input[type="password"],
+input[type="tel"],
 input[type="file"],
 textarea,
 select {
@@ -180,6 +192,7 @@ input[type="text"]:focus,
 input[type="search"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
+input[type="tel"]:focus,
 input[type="file"]:focus,
 textarea:focus,
 select:focus {
@@ -259,6 +272,10 @@ textarea {
 
 .auth-form {
   animation: fade-up 420ms ease-out;
+}
+
+.auth-form .form-grid {
+  grid-template-columns: 1fr;
 }
 
 .auth-actions {

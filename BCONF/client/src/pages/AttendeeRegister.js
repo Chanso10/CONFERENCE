@@ -13,7 +13,7 @@ const initialForm = {
     phone: "",
 };
 
-const Register = ({ setUser }) => {
+const AttendeeRegister = ({ setUser }) => {
     const [form, setForm] = React.useState(initialForm);
     const [error, setError] = React.useState("");
     const navigate = useNavigate();
@@ -30,7 +30,7 @@ const Register = ({ setUser }) => {
         try {
             const res = await axios.post("http://localhost:5000/api/auth/register", {
                 ...form,
-                registrationType: "participant",
+                registrationType: "attendee",
             });
             setUser(res.data.user);
             navigate("/");
@@ -43,13 +43,13 @@ const Register = ({ setUser }) => {
         <div className="app-shell">
             <section className="page-header">
                 <div>
-                    <p className="page-kicker">Participant Accounts</p>
-                    <h1 className="page-title">Register</h1>
-                    <p className="page-subtitle">Create an account to submit papers, review content, or help manage the conference.</p>
+                    <p className="page-kicker">Conference Attendance</p>
+                    <h1 className="page-title">Attendee Registration</h1>
+                    <p className="page-subtitle">Create an attendee account for conference check-in, updates, and future access. This account does not include paper submission or review permissions.</p>
                 </div>
             </section>
             <form className="panel auth-card auth-form" onSubmit={handleSubmit}>
-                <h2 className="panel-title">Create Participant Account</h2>
+                <h2 className="panel-title">Create Attendee Account</h2>
                 {error && <p className="error">{error}</p>}
                 <div className="form-grid">
                     <label className="field">
@@ -70,7 +70,7 @@ const Register = ({ setUser }) => {
                     </label>
                     <label className="field">
                         <span>Institution</span>
-                        <input type="text" placeholder="University or organization" value={form.institution} onChange={updateField("institution")} />
+                        <input type="text" placeholder="Company, school, or organization" value={form.institution} onChange={updateField("institution")} />
                     </label>
                     <label className="field">
                         <span>Pronouns</span>
@@ -85,12 +85,12 @@ const Register = ({ setUser }) => {
                         <input type="tel" placeholder="Phone number" value={form.phone} onChange={updateField("phone")} />
                     </label>
                 </div>
-                <button className="btn btn-primary" type="submit">Create Participant Account</button>
+                <button className="btn btn-primary" type="submit">Create Attendee Account</button>
                 <p className="required-note"><span className="required-indicator">*</span> indicates a required field.</p>
-                <p className="table-meta">Attending without paper access? <Link to="/attendee-register">Register as an attendee</Link>.</p>
+                <p className="table-meta">Need submission or review access instead? <Link to="/register">Register as a participant</Link>.</p>
             </form>
         </div>
     );
 };
 
-export default Register;
+export default AttendeeRegister;

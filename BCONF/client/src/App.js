@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import './App.css';
+import "./App.css";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import PaperList from "./pages/PaperList";
 import PaperView from "./pages/PaperView";
@@ -9,16 +9,19 @@ import UserManagement from "./pages/UserManagement";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AttendeeRegister from "./pages/AttendeeRegister";
 import ReviewManagement from "./pages/ReviewManagement";
 import axios from "axios";
 
-axios.defaults.withCredentials = true; 
+axios.defaults.withCredentials = true;
 
-// components
 function App() {
   const [user, setUser] = useState(null);
   const [error] = useState("");
-  const [ loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  const isChair = user && (user.role === "admin" || user.role === "deputy");
+  const canAccessPapers = user && ["author", "reviewer", "admin", "deputy"].includes(user.role);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -30,7 +33,8 @@ function App() {
       } finally {
         setLoading(false);
       }
-    }
+    };
+
     fetchUser();
   }, []);
 
@@ -38,18 +42,36 @@ function App() {
     return <main className="app-shell"><section className="panel loading-panel">Loading...</section></main>;
   }
 
-
   return (
     <Router>
-      <Navbar user={user} setUser={setUser}/>
+      <Navbar user={user} setUser={setUser} />
       <Routes>
-        <Route path="/" element={<Home user={user} error={error}/>} />
-        <Route path="/login" element={user ? <Navigate to="/"/> : <Login setUser={setUser}/>} />
-        <Route path="/register" element={user ? <Navigate to="/"/> : <Register setUser={setUser}/>} />
-        <Route path="/papers" element={user ? <PaperList user={user} /> : <Navigate to="/login" />} />
-        <Route path="/papers/:id" element={user ? <PaperView user={user} /> : <Navigate to="/login" />} />
-        <Route path="/management" element={user && (user.role === 'admin' || user.role === 'deputy') ? <ReviewManagement /> : <Navigate to="/" />} />
-        <Route path="/users" element={user && user.role === 'admin' ? <UserManagement /> : <Navigate to="/" />} />
+        <Route path="/" element={<Home user={user} error={error} />} />
+        <Route path="/login" element={user ? <Navigate to="/" /> : <Login setUser={setUser} />} />
+        <Route path="/register" element={user ? <Navigate to="/" /> : <Register setUser={setUser} />} />
+        <Route path="/attendee-register" element={user ? <Navigate to="/" /> : <AttendeeRegister setUser={setUser} />} />
+        <Route
+          path="/papers"
+          element={
+            canAccessPapers
+              ? <PaperList user={user} />
+              : user
+                ? <Navigate to="/" />
+                : <Navigate to="/login" />
+          }
+        />
+        <Route
+          path="/papers/:id"
+          element={
+            canAccessPapers
+              ? <PaperView user={user} />
+              : user
+                ? <Navigate to="/" />
+                : <Navigate to="/login" />
+          }
+        />
+        <Route path="/management" element={isChair ? <ReviewManagement /> : <Navigate to="/" />} />
+        <Route path="/users" element={user && user.role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

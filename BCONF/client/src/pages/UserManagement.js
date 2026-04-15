@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+const roleOptions = ["author", "admin", "deputy", "reviewer", "attendee"];
+
 function capitalizeFirstLetter(string) {
-  if (!string) return '';
+  if (!string) return "";
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
 function UserManagement() {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState("");
@@ -27,7 +30,7 @@ function UserManagement() {
     const updateRole = async (id, newRole) => {
         try {
             await axios.put(`http://localhost:5000/api/auth/users/${id}/role`, { role: newRole });
-            loadUsers(); // Reload to show updated roles
+            await loadUsers();
         } catch (err) {
             setError("Failed to update role");
         }
@@ -75,10 +78,9 @@ function UserManagement() {
                                             value={u.role}
                                             onChange={(e) => updateRole(u.id, e.target.value)}
                                         >
-                                            <option value="author">Author</option>
-                                            <option value="admin">Admin</option>
-                                            <option value="deputy">Deputy</option>
-                                            <option value="reviewer">Reviewer</option>
+                                            {roleOptions.map((role) => (
+                                                <option key={role} value={role}>{capitalizeFirstLetter(role)}</option>
+                                            ))}
                                         </select>
                                     </td>
                                 </tr>
