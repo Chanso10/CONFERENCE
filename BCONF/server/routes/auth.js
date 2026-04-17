@@ -24,7 +24,8 @@ const USER_RETURNING_FIELDS = `
     allergies,
     phone,
     email,
-    role
+    role,
+    is_attendee
 `;
 
 const genToken = (id) => {
@@ -79,6 +80,7 @@ const serializeUser = (row) => {
         phone: row.phone || "",
         email: row.email,
         role: row.role,
+        isAttendee: row.is_attendee || false,
     };
 };
 
@@ -105,6 +107,7 @@ const getRegistrationPayload = (body = {}) => {
         allergies: normalizeOptionalText(body.allergies),
         phone: normalizeOptionalText(body.phone),
         registrationType: body.registrationType === "attendee" ? "attendee" : "participant",
+        isAttendee: body.registrationType === "attendee" || body.isAttendee === true,
     };
 };
 
@@ -133,8 +136,8 @@ router.post("/register", async (req, res) => {
 
         const newUser = await pool.query(
             `
-            INSERT INTO users (name, first_name, last_name, institution, pronouns, allergies, phone, email, password, role)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO users (name, first_name, last_name, institution, pronouns, allergies, phone, email, password, role, is_attendee)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING ${USER_RETURNING_FIELDS}
             `,
             [
@@ -148,6 +151,7 @@ router.post("/register", async (req, res) => {
                 registration.email,
                 hashedPassword,
                 role,
+                registration.isAttendee,
             ]
         );
 

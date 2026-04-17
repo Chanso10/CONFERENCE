@@ -36,7 +36,11 @@ function PaperView({ user }) {
     const [updatingApproval, setUpdatingApproval] = useState(false);
     const [approvalError, setApprovalError] = useState("");
     const [directions, setDirections] = useState(null);
-    const isChair = user.role === "admin" || user.role === "deputy";
+    const [metaReview, setMetaReview] = useState(null);
+    const [editingMetaReview, setEditingMetaReview] = useState(false);
+    const [newMetaReview, setNewMetaReview] = useState("");
+    const [submittingMetaReview, setSubmittingMetaReview] = useState(false);
+    const [metaReviewError, setMetaReviewError] = useState("");
 
     const loadRatings = useCallback(async () => {
         try {
@@ -67,6 +71,19 @@ function PaperView({ user }) {
             setDirections(null);
         }
     }, []);
+
+    const loadMetaReview = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_BASE}/papers/${id}/meta-review`);
+            setMetaReview(res.data.meta_review);
+            setMetaReviewError("");
+        } catch (err) {
+            setMetaReview(null);
+            setMetaReviewError("Unable to load meta-review.");
+        }
+    }, [id]);
+
+    const isChair = user.role === "admin" || user.role === "deputy";
 
     const loadReviewType = async () => {
         try {
@@ -109,11 +126,12 @@ function PaperView({ user }) {
                     (typeof res.data.author_id === "number" && res.data.author_id === user.id) ||
                     Boolean(res.data.is_authored_by_me);
                 if (isChair || !ownsPaper) {
-                    await Promise.all([loadRatings(), loadReviews(), loadDirections()]);
+                    await Promise.all([loadRatings(), loadReviews(), loadDirections(), loadMetaReview()]);
                 } else {
                     setRatings([]);
                     setReviews([]);
                     setDirections(null);
+                    setMetaReview(null);
                     setRatingError("");
                     setReviewError("");
                 }
@@ -126,7 +144,7 @@ function PaperView({ user }) {
         };
 
         loadPaper();
-    }, [id, isChair, loadDirections, loadRatings, loadReviews, user.id, user.role]);
+    }, [id, isChair, loadDirections, loadMetaReview, loadRatings, loadReviews, user.id, user.role]);
 
     const submitRating = async (e) => {
         e.preventDefault();
@@ -231,6 +249,27 @@ function PaperView({ user }) {
             setApprovalError(err.response?.data?.message || "Failed to update approval status");
         } finally {
             setUpdatingApproval(false);
+        }
+    };
+
+    const saveMetaReview = async (e) => {
+        e.preventDefault();
+        const trimmed = newMetaReview.trim();
+        if (!trimmed) {
+            setMetaReviewError("Meta-review cannot be empty.");
+            return;
+        }
+        setSubmittingMetaReview(true);
+        try {
+            await axios.put(`${API_BASE}/papers/${id}/meta-review`, { body: trimmed });
+            setMetaReview(trimmed);
+            setEditingMetaReview(false);
+            setNewMetaReview("");
+            setMetaReviewError("");
+        } catch (err) {
+            setMetaReviewError("Failed to save meta-review.");
+        } finally {
+            setSubmittingMetaReview(false);
         }
     };
     if (error) {
@@ -386,6 +425,44 @@ function PaperView({ user }) {
                             </div>
                         ))}
                     </div>
+                </section>
+            )}
+
+            {canSeeFeedback && (metaReview || isChair) && (
+                <section className="panel">
+                    <div className="table-head">
+                        <h2 className="panel-title">Meta-Review</h2>
+                        {isChair && !editingMetaReview && (
+                            <button className="btn btn-secondary" onClick={() => { setEditingMetaReview(true); setNewMetaReview(metaReview || ""); }}>
+                                {metaReview ? "Edit" : "Add"} Meta-Review
+                            </button>
+                        )}
+                    </div>
+                    {editingMetaReview ? (
+                        <form onSubmit={saveMetaReview} className="discussion-form">
+                            <label className="field">
+                                <span>Meta-Review Summary</span>
+                                <textarea
+                                    rows="6"
+                                    value={newMetaReview}
+                                    onChange={(e) => setNewMetaReview(e.target.value)}
+                                    placeholder="Summarize the reviews submitted for this paper..."
+                                    required
+                                />
+                            </label>
+                            <div className="form-actions">
+                                <button type="submit" className="btn btn-primary" disabled={submittingMetaReview}>
+                                    {submittingMetaReview ? "Saving..." : "Save Meta-Review"}
+                                </button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setEditingMetaReview(false)}>
+                                    Cancel
+                                </button>
+                            </div>
+                            {metaReviewError && <p className="form-error">{metaReviewError}</p>}
+                        </form>
+                    ) : metaReview ? (
+                        <p style={{whiteSpace: 'pre-wrap'}}>{metaReview}</p>
+                    ) : null}
                 </section>
             )}
 

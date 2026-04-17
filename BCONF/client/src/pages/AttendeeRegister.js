@@ -2,6 +2,8 @@ import React from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 
+const API_BASE = process.env.REACT_APP_API_URL;
+
 const initialForm = {
     firstName: "",
     lastName: "",
@@ -28,7 +30,7 @@ const AttendeeRegister = ({ setUser }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/register", {
+            const res = await axios.post(`${API_BASE}/api/auth/register`, {
                 ...form,
                 registrationType: "attendee",
             });
