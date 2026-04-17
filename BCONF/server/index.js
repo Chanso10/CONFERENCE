@@ -14,6 +14,52 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const MAX_REVIEW_LENGTH = 5000;
 const MAX_ANTI_BID_REASON_LENGTH = 1000;
+const DEFAULT_WELCOME_PAGE_CONTENT = Object.freeze({
+    conference_name: "BCONF 2026",
+    conference_tagline: "A collaborative conference for authors, reviewers, and attendees.",
+    hero_description:
+        "Explore the event, follow important deadlines, and join the conference community through paper submissions, reviews, and attendee registration.",
+    event_dates: "July 24-26, 2026",
+    location: "Guatemala City, Guatemala",
+    venue: "Central Convention Hall",
+    format: "In-person event with online paper and review management",
+    audience: "Researchers, reviewers, students, and general attendees",
+    overview:
+        "BCONF brings together scholarly submissions, thoughtful peer review, and event participation in one coordinated experience.",
+    submission_deadline: "May 30, 2026",
+    notification_date: "June 20, 2026",
+    registration_deadline: "July 10, 2026",
+    contact_email: "conference@example.com",
+    contact_note: "Reach out for speaker, registration, or logistics questions.",
+    highlights: [
+        "Research presentations and paper discussions",
+        "Structured reviewer coordination and deadlines",
+        "Attendee registration for the broader conference community",
+    ],
+    tracks: [
+        "AI and data-driven systems",
+        "Human-centered computing",
+        "Software engineering and infrastructure",
+        "Interdisciplinary emerging topics",
+    ],
+    faq_items: [
+        {
+            question: "Who should register as an attendee?",
+            answer:
+                "Choose attendee registration if you plan to join the event but do not need paper submission or reviewer access.",
+        },
+        {
+            question: "Do authors and reviewers use the same portal?",
+            answer:
+                "Yes. Submission, review, and conference management workflows are handled through the same BCONF portal.",
+        },
+        {
+            question: "Can the conference details be updated later?",
+            answer:
+                "Yes. An admin can edit the welcome page settings at any time, and the public page will reflect those updates.",
+        },
+    ],
+});
 
 app.use(
     cors({
@@ -38,6 +84,148 @@ const parsePositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
+
+const sanitizeTextField = (value, fallback, maxLength = 500) => {
+    if (typeof value !== "string") {
+        return fallback;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return fallback;
+    }
+
+    return trimmed.slice(0, maxLength);
+};
+
+const sanitizeStringList = (value, fallback, options = {}) => {
+    const {
+        maxItems = 8,
+        maxItemLength = 120,
+    } = options;
+
+    if (!Array.isArray(value)) {
+        return fallback;
+    }
+
+    const cleaned = value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+        .slice(0, maxItems)
+        .map((item) => item.slice(0, maxItemLength));
+
+    return cleaned.length > 0 ? cleaned : fallback;
+};
+
+const sanitizeFaqItems = (value, fallback) => {
+    if (!Array.isArray(value)) {
+        return fallback;
+    }
+
+    const cleaned = value
+        .map((item) => {
+            if (!item || typeof item !== "object") {
+                return null;
+            }
+
+            const question = sanitizeTextField(item.question, "", 160);
+            const answer = sanitizeTextField(item.answer, "", 600);
+
+            if (!question || !answer) {
+                return null;
+            }
+
+            return { question, answer };
+        })
+        .filter(Boolean)
+        .slice(0, 6);
+
+    return cleaned.length > 0 ? cleaned : fallback;
+};
+
+const sanitizeWelcomePageContent = (content = {}) => ({
+    conference_name: sanitizeTextField(
+        content.conference_name,
+        DEFAULT_WELCOME_PAGE_CONTENT.conference_name,
+        120
+    ),
+    conference_tagline: sanitizeTextField(
+        content.conference_tagline,
+        DEFAULT_WELCOME_PAGE_CONTENT.conference_tagline,
+        180
+    ),
+    hero_description: sanitizeTextField(
+        content.hero_description,
+        DEFAULT_WELCOME_PAGE_CONTENT.hero_description,
+        600
+    ),
+    event_dates: sanitizeTextField(
+        content.event_dates,
+        DEFAULT_WELCOME_PAGE_CONTENT.event_dates,
+        120
+    ),
+    location: sanitizeTextField(
+        content.location,
+        DEFAULT_WELCOME_PAGE_CONTENT.location,
+        120
+    ),
+    venue: sanitizeTextField(
+        content.venue,
+        DEFAULT_WELCOME_PAGE_CONTENT.venue,
+        120
+    ),
+    format: sanitizeTextField(
+        content.format,
+        DEFAULT_WELCOME_PAGE_CONTENT.format,
+        160
+    ),
+    audience: sanitizeTextField(
+        content.audience,
+        DEFAULT_WELCOME_PAGE_CONTENT.audience,
+        200
+    ),
+    overview: sanitizeTextField(
+        content.overview,
+        DEFAULT_WELCOME_PAGE_CONTENT.overview,
+        900
+    ),
+    submission_deadline: sanitizeTextField(
+        content.submission_deadline,
+        DEFAULT_WELCOME_PAGE_CONTENT.submission_deadline,
+        120
+    ),
+    notification_date: sanitizeTextField(
+        content.notification_date,
+        DEFAULT_WELCOME_PAGE_CONTENT.notification_date,
+        120
+    ),
+    registration_deadline: sanitizeTextField(
+        content.registration_deadline,
+        DEFAULT_WELCOME_PAGE_CONTENT.registration_deadline,
+        120
+    ),
+    contact_email: sanitizeTextField(
+        content.contact_email,
+        DEFAULT_WELCOME_PAGE_CONTENT.contact_email,
+        160
+    ),
+    contact_note: sanitizeTextField(
+        content.contact_note,
+        DEFAULT_WELCOME_PAGE_CONTENT.contact_note,
+        300
+    ),
+    highlights: sanitizeStringList(
+        content.highlights,
+        DEFAULT_WELCOME_PAGE_CONTENT.highlights,
+        { maxItems: 6, maxItemLength: 120 }
+    ),
+    tracks: sanitizeStringList(
+        content.tracks,
+        DEFAULT_WELCOME_PAGE_CONTENT.tracks,
+        { maxItems: 8, maxItemLength: 120 }
+    ),
+    faq_items: sanitizeFaqItems(content.faq_items, DEFAULT_WELCOME_PAGE_CONTENT.faq_items),
+});
 
 const isChair = (user) => user.role === "admin" || user.role === "deputy";
 const isPaperWorkflowUser = (user) => ["author", "reviewer", "admin", "deputy"].includes(user.role);
@@ -269,6 +457,66 @@ const ensureConferenceSchema = async () => {
     await pool.query(`
         CREATE INDEX IF NOT EXISTS best_paper_votes_reviewer_idx
         ON best_paper_votes (reviewer_id)
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS conference_settings (
+            id SERIAL PRIMARY KEY,
+            review_type VARCHAR(20)
+                CHECK (review_type IN ('single_blind', 'double_blind', 'open'))
+                NOT NULL DEFAULT 'double_blind',
+            landing_page_content JSONB NOT NULL DEFAULT '{}'::jsonb,
+            landing_page_updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            landing_page_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ADD COLUMN IF NOT EXISTS review_type VARCHAR(20)
+            CHECK (review_type IN ('single_blind', 'double_blind', 'open'))
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ALTER COLUMN review_type SET DEFAULT 'double_blind'
+    `);
+
+    await pool.query(`
+        UPDATE conference_settings
+        SET review_type = 'double_blind'
+        WHERE review_type IS NULL
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ALTER COLUMN review_type SET NOT NULL
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ADD COLUMN IF NOT EXISTS landing_page_content JSONB NOT NULL DEFAULT '{}'::jsonb
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ADD COLUMN IF NOT EXISTS landing_page_updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+    `);
+
+    await pool.query(`
+        ALTER TABLE conference_settings
+        ADD COLUMN IF NOT EXISTS landing_page_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS conference_review_directions (
+            id SERIAL PRIMARY KEY,
+            directions TEXT,
+            created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
     `);
 };
 
@@ -1559,14 +1807,151 @@ const applyReviewAnonymization = async (review, reviewType, paperId, isChairUser
 };
     
 const getConferenceSettings = async () => {
-    const res = await pool.query("SELECT review_type FROM conference_settings LIMIT 1");
-    return res.rows[0] || { review_type: "double_blind" };
+    const res = await pool.query(
+        `SELECT review_type, landing_page_content, landing_page_updated_by, landing_page_updated_at
+         FROM conference_settings
+         LIMIT 1`
+    );
+
+    if (res.rows.length === 0) {
+        return {
+            review_type: "double_blind",
+            landing_page_content: DEFAULT_WELCOME_PAGE_CONTENT,
+            landing_page_updated_by: null,
+            landing_page_updated_at: null,
+        };
+    }
+
+    return {
+        ...res.rows[0],
+        landing_page_content: sanitizeWelcomePageContent(res.rows[0].landing_page_content || {}),
+    };
 };
+
+const getWelcomePageSettings = async () => {
+    const settings = await getConferenceSettings();
+
+    return {
+        content: settings.landing_page_content || DEFAULT_WELCOME_PAGE_CONTENT,
+        updated_by: settings.landing_page_updated_by || null,
+        updated_at: settings.landing_page_updated_at || null,
+    };
+};
+
+app.get("/conference/welcome", async (req, res) => {
+    try {
+        const settings = await getWelcomePageSettings();
+        res.json(settings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.get("/management/settings/welcome", protect, async (req, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const settings = await getWelcomePageSettings();
+        res.json(settings);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/management/settings/welcome", protect, async (req, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const nextContent = sanitizeWelcomePageContent(req.body?.content || req.body);
+
+        const updated = await pool.query(
+            `UPDATE conference_settings
+             SET landing_page_content = $1::jsonb,
+                 landing_page_updated_by = $2,
+                 landing_page_updated_at = CURRENT_TIMESTAMP
+             RETURNING landing_page_content, landing_page_updated_by, landing_page_updated_at`,
+            [JSON.stringify(nextContent), req.user.id]
+        );
+
+        if (updated.rows.length === 0) {
+            const created = await pool.query(
+                `INSERT INTO conference_settings (landing_page_content, landing_page_updated_by)
+                 VALUES ($1::jsonb, $2)
+                 RETURNING landing_page_content, landing_page_updated_by, landing_page_updated_at`,
+                [JSON.stringify(nextContent), req.user.id]
+            );
+
+            return res.json({
+                content: sanitizeWelcomePageContent(created.rows[0].landing_page_content || {}),
+                updated_by: created.rows[0].landing_page_updated_by || null,
+                updated_at: created.rows[0].landing_page_updated_at || null,
+            });
+        }
+
+        res.json({
+            content: sanitizeWelcomePageContent(updated.rows[0].landing_page_content || {}),
+            updated_by: updated.rows[0].landing_page_updated_by || null,
+            updated_at: updated.rows[0].landing_page_updated_at || null,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.delete("/management/settings/welcome", protect, async (req, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const resetContent = { ...DEFAULT_WELCOME_PAGE_CONTENT };
+
+        const updated = await pool.query(
+            `UPDATE conference_settings
+             SET landing_page_content = $1::jsonb,
+                 landing_page_updated_by = $2,
+                 landing_page_updated_at = CURRENT_TIMESTAMP
+             RETURNING landing_page_content, landing_page_updated_by, landing_page_updated_at`,
+            [JSON.stringify(resetContent), req.user.id]
+        );
+
+        if (updated.rows.length === 0) {
+            const created = await pool.query(
+                `INSERT INTO conference_settings (landing_page_content, landing_page_updated_by)
+                 VALUES ($1::jsonb, $2)
+                 RETURNING landing_page_content, landing_page_updated_by, landing_page_updated_at`,
+                [JSON.stringify(resetContent), req.user.id]
+            );
+
+            return res.json({
+                content: sanitizeWelcomePageContent(created.rows[0].landing_page_content || {}),
+                updated_by: created.rows[0].landing_page_updated_by || null,
+                updated_at: created.rows[0].landing_page_updated_at || null,
+            });
+        }
+
+        res.json({
+            content: sanitizeWelcomePageContent(updated.rows[0].landing_page_content || {}),
+            updated_by: updated.rows[0].landing_page_updated_by || null,
+            updated_at: updated.rows[0].landing_page_updated_at || null,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 app.get("/management/settings/review-type", protect, async (req, res) => {
     try {
         const settings = await getConferenceSettings();
-        res.json(settings);
+        res.json({ review_type: settings.review_type });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });

@@ -11,6 +11,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AttendeeRegister from "./pages/AttendeeRegister";
 import ReviewManagement from "./pages/ReviewManagement";
+import Welcome from "./pages/Welcome";
+import SiteSettings from "./pages/SiteSettings";
 import axios from "axios";
 
 axios.defaults.withCredentials = true;
@@ -47,6 +49,7 @@ function App() {
       <Navbar user={user} setUser={setUser} />
       <Routes>
         <Route path="/" element={<Home user={user} error={error} />} />
+        <Route path="/welcome" element={<Welcome user={user} />} />
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login setUser={setUser} />} />
         <Route path="/register" element={user ? <Navigate to="/" /> : <Register setUser={setUser} />} />
         <Route path="/attendee-register" element={user ? <Navigate to="/" /> : <AttendeeRegister setUser={setUser} />} />
@@ -72,6 +75,7 @@ function App() {
         />
         <Route path="/management" element={isChair ? <ReviewManagement /> : <Navigate to="/" />} />
         <Route path="/users" element={user && user.role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
+        <Route path="/settings" element={user && user.role === "admin" ? <SiteSettings /> : <Navigate to="/" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

@@ -117,7 +117,10 @@ CREATE TABLE conference_settings (
   id SERIAL PRIMARY KEY,
   review_type VARCHAR(20)
     CHECK (review_type IN ('single_blind', 'double_blind', 'open'))
-    NOT NULL DEFAULT 'double_blind'
+    NOT NULL DEFAULT 'double_blind',
+  landing_page_content JSONB NOT NULL DEFAULT '{}'::jsonb,
+  landing_page_updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  landing_page_updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE conference_review_directions (

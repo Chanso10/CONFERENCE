@@ -9,7 +9,7 @@ const Navbar = ({ user, setUser }) => {
     const handleLogout = async() => {
         await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/logout`);
         setUser(null);
-        navigate("/");
+        navigate("/welcome");
     };
 
     const handleLogin = () => {
@@ -27,15 +27,19 @@ const Navbar = ({ user, setUser }) => {
     return (
         <header className="top-nav-wrap">
             <nav className="top-nav">
-                <Link to="/" className="brand">BCONF</Link>
+                <Link to="/welcome" className="brand">BCONF</Link>
                 <div className="nav-links">
-                    <Link to="/" className="nav-link">Home</Link>
+                    <Link to="/welcome" className="nav-link">Welcome</Link>
+                    <Link to="/" className="nav-link">Portal</Link>
                     {canAccessPapers && <Link to="/papers" className="nav-link">Papers</Link>}
                     {user && (user.role === "admin" || user.role === "deputy") && (
                         <Link to="/management" className="nav-link">Manage Reviews</Link>
                     )}
                     {user && user.role === "admin" && (
-                        <Link to="/users" className="nav-link">Manage Users</Link>
+                        <>
+                            <Link to="/users" className="nav-link">Manage Users</Link>
+                            <Link to="/settings" className="nav-link">Site Settings</Link>
+                        </>
                     )}
                 </div>
                 <div className="nav-actions">
