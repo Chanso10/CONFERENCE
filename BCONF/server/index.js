@@ -368,6 +368,11 @@ const ensureConferenceSchema = async () => {
     `);
 
     await pool.query(`
+        CREATE INDEX IF NOT EXISTS paper_reviews_paper_parent_idx
+        ON paper_reviews (paper_id, parent_review_id, created_at, review_id)
+    `);
+
+    await pool.query(`
         CREATE INDEX IF NOT EXISTS paper_reviews_author_idx
         ON paper_reviews (author_id, created_at DESC)
     `);
@@ -519,6 +524,128 @@ const ensureConferenceSchema = async () => {
         )
     `);
 };
+
+const csvEscape = (value) => {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    const text = String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+};
+
+const exportQueryMap = {
+    attendees: {
+        sql: `
+            SELECT first_name, last_name, email
+            FROM users
+            WHERE role = 'attendee'
+            ORDER BY last_name NULLS LAST, first_name NULLS LAST, email ASC
+        `,
+        headers: ["first_name", "last_name", "email"],
+    },
+    authors: {
+        sql: `
+            SELECT first_name, last_name, email
+            FROM users
+            WHERE role = 'author'
+            ORDER BY last_name NULLS LAST, first_name NULLS LAST, email ASC
+        `,
+        headers: ["first_name", "last_name", "email"],
+    },
+    reviewers: {
+        sql: `
+            SELECT first_name, last_name, email
+            FROM users
+            WHERE role = 'reviewer'
+            ORDER BY last_name NULLS LAST, first_name NULLS LAST, email ASC
+        `,
+        headers: ["first_name", "last_name", "email"],
+    },
+    papers: {
+        sql: `
+            SELECT p.title, p.approval, u.first_name, u.last_name, u.email
+            FROM papers p
+            JOIN users u ON u.id = p.author_id
+            ORDER BY p.title ASC
+        `,
+        headers: ["title", "approval", "first_name", "last_name", "email"],
+    },
+    approved_papers: {
+        sql: `
+            SELECT p.title, p.approval, u.first_name, u.last_name, u.email
+            FROM papers p
+            JOIN users u ON u.id = p.author_id
+            WHERE LOWER(p.approval) = 'approved'
+            ORDER BY p.title ASC
+        `,
+        headers: ["title", "approval", "first_name", "last_name", "email"],
+    },
+    denied_papers: {
+        sql: `
+            SELECT p.title, p.approval, u.first_name, u.last_name, u.email
+            FROM papers p
+            JOIN users u ON u.id = p.author_id
+            WHERE LOWER(p.approval) = 'denied'
+            ORDER BY p.title ASC
+        `,
+        headers: ["title", "approval", "first_name", "last_name", "email"],
+    },
+    awaiting_changes_papers: {
+        sql: `
+            SELECT p.title, p.approval, u.first_name, u.last_name, u.email
+            FROM papers p
+            JOIN users u ON u.id = p.author_id
+            WHERE LOWER(p.approval) = 'awaiting changes'
+            ORDER BY p.title ASC
+        `,
+        headers: ["title", "approval", "first_name", "last_name", "email"],
+    },
+    pending_papers: {
+        sql: `
+            SELECT p.title, p.approval, u.first_name, u.last_name, u.email
+            FROM papers p
+            JOIN users u ON u.id = p.author_id
+            WHERE LOWER(p.approval) = 'pending'
+            ORDER BY p.title ASC
+        `,
+        headers: ["title", "approval", "first_name", "last_name", "email"],
+    },
+};
+
+app.get("/management/export", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const exportType = (req.query.type || "").toString();
+        const exportConfig = exportQueryMap[exportType];
+
+        if (!exportConfig) {
+            return res.status(400).json({ message: "Invalid export type" });
+        }
+
+        const results = await pool.query(exportConfig.sql);
+        const rows = results.rows;
+        const csvLines = [exportConfig.headers.join(",")];
+
+        for (const row of rows) {
+            csvLines.push(
+                exportConfig.headers
+                    .map((header) => csvEscape(row[header]))
+                    .join(",")
+            );
+        }
+
+        const filename = `bconf-${exportType}.csv`;
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(csvLines.join("\r\n"));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
 app.post("/papers", protect, upload.single("pdf"), async (req, res) => {
     try {

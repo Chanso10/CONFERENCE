@@ -13,6 +13,7 @@ import AttendeeRegister from "./pages/AttendeeRegister";
 import ReviewManagement from "./pages/ReviewManagement";
 import Welcome from "./pages/Welcome";
 import SiteSettings from "./pages/SiteSettings";
+import DataExport from "./pages/DataExport";
 import axios from "axios";
 
 axios.defaults.withCredentials = true;
@@ -74,6 +75,7 @@ function App() {
           }
         />
         <Route path="/management" element={isChair ? <ReviewManagement /> : <Navigate to="/" />} />
+        <Route path="/management/export" element={isChair ? <DataExport /> : <Navigate to="/" />} />
         <Route path="/users" element={user && user.role === "admin" ? <UserManagement /> : <Navigate to="/" />} />
         <Route path="/settings" element={user && user.role === "admin" ? <SiteSettings /> : <Navigate to="/" />} />
         <Route path="*" element={<NotFound />} />
