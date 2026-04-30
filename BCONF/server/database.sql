@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS paper_assignment_feedback CASCADE;
 DROP TABLE IF EXISTS paper_assignments CASCADE;
 DROP TABLE IF EXISTS paper_bids CASCADE;
 DROP TABLE IF EXISTS paper_reviews CASCADE;
+DROP TABLE IF EXISTS paper_presentations CASCADE;
 DROP TABLE IF EXISTS ratings CASCADE;
 DROP TABLE IF EXISTS papers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
@@ -36,6 +37,27 @@ CREATE TABLE papers(
   author_id INTEGER REFERENCES users(id),
   approval VARCHAR(50) DEFAULT 'Pending'
 );
+
+CREATE TABLE paper_presentations (
+  presentation_id BIGSERIAL PRIMARY KEY,
+  paper_id INTEGER NOT NULL UNIQUE REFERENCES papers(paper_id) ON DELETE CASCADE,
+  presentation_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME,
+  room VARCHAR(160),
+  session_title VARCHAR(160),
+  notes TEXT,
+  scheduled_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_presentations_time_order CHECK (end_time IS NULL OR end_time > start_time)
+);
+
+CREATE INDEX paper_presentations_date_time_idx
+  ON paper_presentations (presentation_date, start_time);
+
+CREATE INDEX paper_presentations_paper_idx
+  ON paper_presentations (paper_id);
 
 CREATE TABLE ratings (
   id SERIAL PRIMARY KEY,

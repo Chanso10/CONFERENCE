@@ -33,10 +33,11 @@ const Navbar = ({ user, setUser }) => {
                     <Link to="/" className="nav-link">Portal</Link>
                     {canAccessPapers && <Link to="/papers" className="nav-link">Papers</Link>}
                     {user && (user.role === "admin" || user.role === "deputy") && (
-                        <>
-                            <Link to="/management" className="nav-link">Manage Reviews</Link>
-                            <Link to="/management/export" className="nav-link">Data Exports</Link>
-                        </>
+	                        <>
+	                            <Link to="/management" className="nav-link">Manage Reviews</Link>
+	                            <Link to="/management/schedule" className="nav-link">Schedule</Link>
+	                            <Link to="/management/export" className="nav-link">Data Exports</Link>
+	                        </>
                     )}
                     {user && user.role === "admin" && (
                         <>

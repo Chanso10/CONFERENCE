@@ -27,9 +27,10 @@ const Home = ({ user, error }) => {
                             <p className="page-subtitle">Use your account to manage submissions, review assignments, and conference activity.</p>
                         )}
                         <div className="auth-actions">
-                            {canAccessPapers && <Link to="/papers" className="btn btn-primary">Open Papers</Link>}
-                            {isChair && <Link to="/management" className="btn btn-secondary">Manage Reviews</Link>}
-                            {user.role === "admin" && <Link to="/users" className="btn btn-secondary">Manage Users</Link>}
+	                            {canAccessPapers && <Link to="/papers" className="btn btn-primary">Open Papers</Link>}
+	                            {isChair && <Link to="/management" className="btn btn-secondary">Manage Reviews</Link>}
+	                            {isChair && <Link to="/management/schedule" className="btn btn-secondary">Schedule Presentations</Link>}
+	                            {user.role === "admin" && <Link to="/users" className="btn btn-secondary">Manage Users</Link>}
                         </div>
                     </>
                 ) : (

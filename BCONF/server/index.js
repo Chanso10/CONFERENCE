@@ -14,6 +14,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const MAX_REVIEW_LENGTH = 5000;
 const MAX_ANTI_BID_REASON_LENGTH = 1000;
+const MAX_PRESENTATION_TEXT_LENGTH = 160;
+const MAX_PRESENTATION_NOTES_LENGTH = 1000;
 const DEFAULT_WELCOME_PAGE_CONTENT = Object.freeze({
     conference_name: "BCONF 2026",
     conference_tagline: "A collaborative conference for authors, reviewers, and attendees.",
@@ -141,6 +143,47 @@ const sanitizeFaqItems = (value, fallback) => {
         .slice(0, 6);
 
     return cleaned.length > 0 ? cleaned : fallback;
+};
+
+const normalizeDateInput = (value) => {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return null;
+    }
+
+    const parsed = new Date(`${trimmed}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== trimmed) {
+        return null;
+    }
+
+    return trimmed;
+};
+
+const normalizeTimeInput = (value) => {
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    const match = trimmed.match(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/);
+    return match ? trimmed.slice(0, 5) : null;
+};
+
+const sanitizeOptionalText = (value, maxLength) => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed.slice(0, maxLength) : null;
 };
 
 const sanitizeWelcomePageContent = (content = {}) => ({
@@ -462,6 +505,33 @@ const ensureConferenceSchema = async () => {
     await pool.query(`
         CREATE INDEX IF NOT EXISTS best_paper_votes_reviewer_idx
         ON best_paper_votes (reviewer_id)
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS paper_presentations (
+            presentation_id BIGSERIAL PRIMARY KEY,
+            paper_id INTEGER NOT NULL UNIQUE REFERENCES papers(paper_id) ON DELETE CASCADE,
+            presentation_date DATE NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME,
+            room VARCHAR(160),
+            session_title VARCHAR(160),
+            notes TEXT,
+            scheduled_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT paper_presentations_time_order CHECK (end_time IS NULL OR end_time > start_time)
+        )
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS paper_presentations_date_time_idx
+        ON paper_presentations (presentation_date, start_time)
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS paper_presentations_paper_idx
+        ON paper_presentations (paper_id)
     `);
 
     await pool.query(`
@@ -1294,6 +1364,166 @@ app.get("/management/papers", protect, async (req, res) => {
         }
 
         res.json(Array.from(paperMap.values()));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.get("/management/schedule", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const scheduledPapers = await pool.query(
+            `
+            SELECT
+                p.paper_id,
+                p.title,
+                p.author,
+                u.email AS author_email,
+                p.description,
+                p.approval,
+                pp.presentation_id,
+                to_char(pp.presentation_date, 'YYYY-MM-DD') AS presentation_date,
+                to_char(pp.start_time, 'HH24:MI') AS start_time,
+                to_char(pp.end_time, 'HH24:MI') AS end_time,
+                pp.room,
+                pp.session_title,
+                pp.notes,
+                pp.scheduled_by,
+                scheduler.name AS scheduled_by_name,
+                pp.updated_at AS schedule_updated_at
+            FROM papers p
+            LEFT JOIN users u ON u.id = p.author_id
+            LEFT JOIN paper_presentations pp ON pp.paper_id = p.paper_id
+            LEFT JOIN users scheduler ON scheduler.id = pp.scheduled_by
+            WHERE LOWER(COALESCE(p.approval, 'pending')) = 'approved'
+            ORDER BY
+                pp.presentation_date NULLS LAST,
+                pp.start_time NULLS LAST,
+                LOWER(COALESCE(p.title, '')) ASC,
+                p.paper_id ASC
+            `
+        );
+
+        res.json(scheduledPapers.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.put("/management/schedule/:paperId", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const paperId = parsePositiveInt(req.params.paperId);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        const presentationDate = normalizeDateInput(req.body?.presentationDate);
+        const startTime = normalizeTimeInput(req.body?.startTime);
+        const endTime = req.body?.endTime ? normalizeTimeInput(req.body.endTime) : null;
+        const room = sanitizeOptionalText(req.body?.room, MAX_PRESENTATION_TEXT_LENGTH);
+        const sessionTitle = sanitizeOptionalText(req.body?.sessionTitle, MAX_PRESENTATION_TEXT_LENGTH);
+        const notes = sanitizeOptionalText(req.body?.notes, MAX_PRESENTATION_NOTES_LENGTH);
+
+        if (!presentationDate || !startTime) {
+            return res.status(400).json({ message: "Presentation date and start time are required" });
+        }
+
+        if (req.body?.endTime && !endTime) {
+            return res.status(400).json({ message: "End time is invalid" });
+        }
+
+        if (endTime && endTime <= startTime) {
+            return res.status(400).json({ message: "End time must be after start time" });
+        }
+
+        const paper = await pool.query(
+            "SELECT paper_id, approval FROM papers WHERE paper_id = $1",
+            [paperId]
+        );
+
+        if (paper.rows.length === 0) {
+            return res.status(404).json({ message: "Paper not found" });
+        }
+
+        if ((paper.rows[0].approval || "").toLowerCase() !== "approved") {
+            return res.status(400).json({ message: "Only approved papers can be scheduled" });
+        }
+
+        const saved = await pool.query(
+            `
+            INSERT INTO paper_presentations (
+                paper_id,
+                presentation_date,
+                start_time,
+                end_time,
+                room,
+                session_title,
+                notes,
+                scheduled_by
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (paper_id)
+            DO UPDATE SET
+                presentation_date = EXCLUDED.presentation_date,
+                start_time = EXCLUDED.start_time,
+                end_time = EXCLUDED.end_time,
+                room = EXCLUDED.room,
+                session_title = EXCLUDED.session_title,
+                notes = EXCLUDED.notes,
+                scheduled_by = EXCLUDED.scheduled_by,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING
+                presentation_id,
+                paper_id,
+                to_char(presentation_date, 'YYYY-MM-DD') AS presentation_date,
+                to_char(start_time, 'HH24:MI') AS start_time,
+                to_char(end_time, 'HH24:MI') AS end_time,
+                room,
+                session_title,
+                notes,
+                scheduled_by,
+                updated_at
+            `,
+            [paperId, presentationDate, startTime, endTime, room, sessionTitle, notes, req.user.id]
+        );
+
+        res.json(saved.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+app.delete("/management/schedule/:paperId", protect, async (req, res) => {
+    try {
+        if (!isChair(req.user)) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const paperId = parsePositiveInt(req.params.paperId);
+        if (!paperId) {
+            return res.status(400).json({ message: "Invalid paper ID" });
+        }
+
+        const removed = await pool.query(
+            "DELETE FROM paper_presentations WHERE paper_id = $1 RETURNING presentation_id",
+            [paperId]
+        );
+
+        if (removed.rows.length === 0) {
+            return res.status(404).json({ message: "Schedule entry not found" });
+        }
+
+        res.json({ message: "Presentation slot cleared" });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });
