@@ -15,6 +15,7 @@ const initialForm = {
 
 const Register = ({ setUser }) => {
     const [form, setForm] = React.useState(initialForm);
+    const [isAttendee, setIsAttendee] = React.useState(false);
     const [error, setError] = React.useState("");
     const navigate = useNavigate();
 
@@ -28,7 +29,11 @@ const Register = ({ setUser }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
-            const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/register`, form);
+            const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/register`, {
+                ...form,
+                registrationType: "participant",
+                isAttendee,
+            });
             setUser(res.data.user);
             navigate("/");
         } catch (submitError) {
@@ -65,22 +70,35 @@ const Register = ({ setUser }) => {
                         <span>Password <span className="required-indicator">*</span></span>
                         <input type="password" placeholder="Create password" value={form.password} onChange={updateField("password")} required />
                     </label>
-                    <label className="field">
-                        <span>Institution</span>
-                        <input type="text" placeholder="University or organization" value={form.institution} onChange={updateField("institution")} />
+                    <label className="field checkbox-field" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input
+                            type="checkbox"
+                            checked={isAttendee}
+                            onChange={(event) => setIsAttendee(event.target.checked)}
+                            style={{ margin: 0 }}
+                        />
+                        <span>Do you intend to attend the conference?</span>
                     </label>
-                    <label className="field">
-                        <span>Pronouns</span>
-                        <input type="text" placeholder="Pronouns" value={form.pronouns} onChange={updateField("pronouns")} />
-                    </label>
-                    <label className="field">
-                        <span>Allergies</span>
-                        <input type="text" placeholder="Dietary or allergy notes" value={form.allergies} onChange={updateField("allergies")} />
-                    </label>
-                    <label className="field">
-                        <span>Phone</span>
-                        <input type="tel" placeholder="Phone number" value={form.phone} onChange={updateField("phone")} />
-                    </label>
+                    {isAttendee && (
+                        <>
+                            <label className="field">
+                                <span>Institution</span>
+                                <input type="text" placeholder="University or organization" value={form.institution} onChange={updateField("institution")} />
+                            </label>
+                            <label className="field">
+                                <span>Pronouns</span>
+                                <input type="text" placeholder="Pronouns" value={form.pronouns} onChange={updateField("pronouns")} />
+                            </label>
+                            <label className="field">
+                                <span>Allergies</span>
+                                <input type="text" placeholder="Dietary or allergy notes" value={form.allergies} onChange={updateField("allergies")} />
+                            </label>
+                            <label className="field">
+                                <span>Phone</span>
+                                <input type="tel" placeholder="Phone number" value={form.phone} onChange={updateField("phone")} />
+                            </label>
+                        </>
+                    )}
                 </div>
                 <button className="btn btn-primary" type="submit">Create Participant Account</button>
                 <p className="required-note"><span className="required-indicator">*</span> indicates a required field.</p>

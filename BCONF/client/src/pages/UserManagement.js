@@ -58,6 +58,7 @@ function UserManagement() {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
+                                <th>Attendee</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -72,6 +73,7 @@ function UserManagement() {
                                     <td>{u.name}</td>
                                     <td>{u.email}</td>
                                     <td>{capitalizeFirstLetter(u.role)}</td>
+                                    <td>{u.isAttendee ? "Yes" : "No"}</td>
                                     <td>
                                         <select
                                             className="role-select"

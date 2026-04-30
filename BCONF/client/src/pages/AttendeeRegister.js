@@ -28,9 +28,10 @@ const AttendeeRegister = ({ setUser }) => {
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/register", {
+            const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/auth/register`, {
                 ...form,
                 registrationType: "attendee",
+                isAttendee: true,
             });
             setUser(res.data.user);
             navigate("/");
