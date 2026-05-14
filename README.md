@@ -40,16 +40,16 @@ GRANT ALL PRIVILEGES ON FUNCTIONS TO bconf;
 ALTER DATABASE bconf OWNER TO bconf;
 ALTER SCHEMA public OWNER TO bconf;
 ```
-6. Sign into user “bconf” as host “localhost”: 
+5. Sign into user “bconf” as host “localhost”: 
 	```
 	psql -h localhost -U bconf
 	```
-7. Connect to database “bconf”
+6. Connect to database “bconf”
 	\c bconf
-8. Copy and paste the all PostgreSQL script found in: 
+7. Copy and paste the all PostgreSQL script found in: 
 	/CONFERENCE/BCONF/server/database.sql
 These commands can be pasted all together and ran all at once
-9. Run the following commands to install dependencies (this can be done within VSCode command line. Open VSCode using “code .”):
+8. Run the following commands to install dependencies (this can be done within VSCode command line. Open VSCode using “code .”):
 	```
 	CONFERENCE\BCONF\server> npm install
 	```
@@ -57,7 +57,7 @@ and
 	```
 	CONFERENCE\BCONF\client> npm install
 	```
-10. Everything is now set up. To launch the app, run 
+9. Everything is now set up. To launch the app, run 
 	```
 	CONFERENCE\BCONF\server> node index
 	```
@@ -65,7 +65,7 @@ and
 	```
 	CONFERENCE\BCONF\client> npm start
 	```
-11. If there are SSH X11 issues, run:
+10. If there are SSH X11 issues, run:
 	```
 	export XAUTHORITY=$HOME/.Xauthority
 	```
